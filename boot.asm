@@ -39,6 +39,22 @@ BSFilSysType      DB    "FAT12   "    ;FileSystemType(8bytes required)
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 BOOT:
           CLI
+; Initialize Data Segment
+          XOR     AX, AX
+          MOV     DS, AX
+          MOV     ES, AX
+          MOV     ES, AX
+          MOV     FS, AX
+          MOV     GS, AX
+
+          XOR     BX, BX
+          XOR     CX, CX
+          XOR     DX, DX
+
+; Initialize Stack Segment and Stack Pointer
+          MOV     SS, AX
+          MOV     SP, 0xFFFC
+
           HLT
 
 TIMES 510 - ($ - $$) DB 0
