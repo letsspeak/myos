@@ -32,13 +32,6 @@ BS_VolID          DD    0x20151004    ;VolumeSerialNumber
 BS_VolLab         DB    "MyOS       " ;VolumeLabel(11bytes reqired)
 BSFilSysType      DB    "FAT12   "    ;FileSystemType(8bytes required)
 
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-;
-; Data Section
-;
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-
-ImageName           DB "Bood-bye Small World", 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -63,10 +56,30 @@ BOOT:
           MOV     SS, AX
           MOV     SP, 0xFFFC
 
+; Show Message
           MOV     SI, ImageName
-          CALL    DisplayMessage
+          CALL    DisplayLine
+
+; Reset Floppy Drive
+          CALL    ResetFloppyDrive
 
           HLT
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; DisplayLine
+; display ASCIIZ string
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+DisplayLine:
+          PUSH    AX
+          PUSH    BX
+          CALL    DisplayString
+          MOV     SI, LineFeedCode
+          CALL    DisplayString
+          POP     BX
+          POP     AX
+          RET
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -74,10 +87,10 @@ BOOT:
 ; display ASCIIZ string
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-DisplayMessage:
+DisplayString:
           PUSH    AX
           PUSH    BX
-StartDispMsg:
+StartDispStr:
           LODSB
           OR      AL, AL
           JZ      .DONE
@@ -85,11 +98,43 @@ StartDispMsg:
           MOV     BH, 0x00
           MOV     BL, 0x07
           INT     0x10
-          JMP     StartDispMsg
+          JMP     StartDispStr
 .DONE:
           POP     BX
           POP     AX
           RET
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; ResetFloppyDrive
+; Reset Floppy Drive
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+ResetFloppyDrive:
+          MOV   AH, 0x00
+          MOV   DL, 0x00
+          INT   0x13
+          JC FAILURE
+; Show Success Message
+          MOV     SI, ResetFloppyDriveSuccess
+          CALL    DisplayLine
+          HLT
+FAILURE:
+; Show Fail Message
+          MOV     SI, ResetFloppyDriveFail
+          CALL    DisplayLine
+          HLT
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; Data Section
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+
+LineFeedCode                DB 0x0D, 0x0A, 0x00
+ImageName                   DB "MyOS Boot Loader", 0x00
+ResetFloppyDriveSuccess     DB "Reset Floppy Drive.....Success", 0x00
+ResetFloppyDriveFail        DB "Reset Floppy Drive.....Fail", 0x00
 
 TIMES 510 - ($ - $$) DB 0
 
