@@ -7,6 +7,23 @@
 ORG       0x7C00
 
 ;==============================
+;
+; Sector MAP
+; (1 Sector = 512 byte)
+;
+; Sector 0                      : Boot Sector
+; Sector 1-9 (9 sectors)        : FAT
+; Sector 10-18 (9 sectors)      : FAT(Reserved)
+; Sector 19-32 (14 sectors)     : Root Directory
+; Sector 33-2879 (2849 sectors) : File
+;
+;==============================
+
+;********************************
+; Sector 0: Boot Sector BEGIN
+;*******************************
+
+;==============================
 ; BIOS parameter blocks(FAT12)
 ;==============================
 JMP SHORT         BOOT                ;BS_jmpBoot
@@ -62,10 +79,11 @@ BOOT:
 
 ; Reset Floppy Drive
           CALL    ResetFloppyDrive
-; Read Sectors
-          MOV     AX, 2000
-          CALL    ReadSectors
+; Load FAT
+          CALL    LOAD_FAT
           HLT
+
+ImageName                   DB "MyOS Boot Loader", 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -83,9 +101,11 @@ DisplayLine:
           POP     AX
           RET
 
+LineFeedCode                DB 0x0D, 0x0A, 0x00
+
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
-; DisplayMessage
+; DisplayString
 ; display ASCIIZ string
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -127,31 +147,9 @@ FAILURE:
           CALL    DisplayLine
           HLT
 
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-;
-; ReadSectors
-; Read Sectors
-;
-; input AX: logical sector number (LBA)
-;
-; セクタ:512バイト
-; シリンダ: 18セクタ (SecPerTrack)
-; ヘッド: 80シリンダ
-; 総セクタ: 2 x 80 x 18 = 2880 ( 0x0E04 )
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-ReadSectors:
-          CALL LBA2CHS                    ; 論理セクタを物理セクタに変換
-          MOV AH, 0x02                    ; セクタ読み込みモード
-          MOV AL, 0x01                    ; 1つのセクタだけ読み込み
-          MOV CH, BYTE [physicalTrack]    ; Track
-          MOV CL, BYTE [physicalSector]   ; Sector
-          MOV DH, BYTE [physicalHead]     ; Head
-          MOV DL, BYTE [BS_DrvNum]        ; Drive
-          MOV BX, 0x1000                  ;
-          MOV ES, BX                      ; アドレス0x10000から開始するセグメントに読み込みます
-          MOV BX, 0x0000                  ; セグメントの最初(オフセット0x0000)に読み込みます。
-          INT 0x13                        ; セクタを読み込みます
-          RET
+ResetFloppyDriveSuccess     DB "Reset Floppy Drive.....Success", 0x00
+ResetFloppyDriveFail        DB "Reset Floppy Drive.....Fail", 0x00
+
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ; LBA2CHS
@@ -179,16 +177,104 @@ physicalTrack   DB 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
+; Load FAT From Floppy
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+LOAD_FAT:
+; FATをアドレス0x7E00に読み込む
+          MOV     BX, WORD [BX_FAT_ADDR]        ; FATを読み込むアドレス0x7E00を引数BXに代入
+          ADD     AX, WORD [BPB_RsvdSecCnt]     ; FATの開始セクタを取得
+          XCHG    AX, CX                        ; FATの開始セクタを一旦CXレジスタに退避
+          MOV     AX, WORD [BPB_FATSz16]        ; FATのサイズを計算(FATのセクタ数を取得)
+          MUL     BYTE [BPB_NumFATs]            ; FATの予備領域も念のため読み込む
+                                                ; AX x BPB_NumFATs => AX
+          XCHG    AX, CX                        ; CXにFATのサイズ、AXにFATの開始セクタ
+READ_FAT:
+          CALL    ReadSector                    ; FATを1セクタずつ読み込む
+          ADD     BX, WORD [BPB_BytsPerSec]     ; 1セクタを読み込んだので格納アドレスに512バイト足す
+          INC     AX                            ; 次のセクタを読み込むのでAXに1を足す
+          DEC     CX                            ; 残りのFATサイズを1セクタ減らす
+          JCXZ    FAT_LOADED                    ; CX=0でZFが立ったら読み込み終了
+          JMP     READ_FAT                      ; 次のセクタの読み込み
+FAT_LOADED:
+          MOV     SI, FatLoadedMessage
+          CALL    DisplayLine
+          RET
+
+FatLoadedMessage     DB "FAT Loaded.", 0x00
+BX_FAT_ADDR       DW 0x7E00
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; ReadSector
+; Read 1 Sector
+; Input
+;   BX: 読み込んだセクタを格納するアドレス
+;   AX: 読み込みたい論理セクタ(LBA)
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+ReadSector:
+          MOV     DI, 0x0005                ; エラー発生時5回までリトライする
+SECTORLOOP:
+          PUSH    AX                        ; AX, BX, CX をスタックに退避
+;          PUSH    BX
+          PUSH    CX
+          MOV     SI, ReadSectorBeginMessage
+          CALL    DisplayString
+          CALL    LBA2CHS                   ; 論理セクタを物理セクタに変換
+          MOV     AH, 0x02                  ; セクタ読み込みモード
+          MOV     AL, 0x01                  ; 1つのセクタだけ読み込み
+          MOV     CH, BYTE [physicalTrack]  ; Track
+          MOV     CL, BYTE [physicalSector] ; Sector
+          MOV     DH, BYTE [physicalHead]   ; Head
+          MOV     DL, BYTE [BS_DrvNum]      ; Drive
+          INT     0x13                      ; BIOS処理呼び出し
+          JNC     ReadSectorSuccess         ; CFを見て成功失敗を判定
+          ; エラー発生時の処理
+          MOV     SI, ReadSectorFailMessage
+          CALL    DisplayLine
+          XOR     AX, AX
+          INT     0x13                      ; ヘッドを初期位置に戻す
+          DEC     DI                        ; エラーカウンタを減らす
+          POP     CX                        ; AX, BX, CX の退避データを元に戻す
+;          POP     BX
+          POP     AX
+          JNZ     SECTORLOOP                ; 読み取りのリトライ
+          ; 読み取り失敗
+          INT     0x18                      ; 謎
+          MOV     SI, ReadSectorFailEndMessage
+          CALL    DisplayLine
+          HLT
+ReadSectorSuccess:
+          MOV     SI, ReadSectorSuccessMessage
+          CALL    DisplayLine
+          POP     CX
+          POP     AX
+          RET
+
+;          MOV BX, 0x1000                  ;
+;          MOV ES, BX                      ; アドレス0x10000から開始するセグメントに読み込みます
+;          MOV BX, 0x0000                  ; セグメントの最初(オフセット0x0000)に読み込みます。
+;          INT 0x13                        ; セクタを読み込みます
+;          RET
+
+ReadSectorBeginMessage  DB "ReadSector...", 0x00
+ReadSectorSuccessMessage  DB "Success", 0x00
+ReadSectorFailMessage  DB "Fail", 0x00
+ReadSectorFailEndMessage  DB "ReadSectorFail", 0x00
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
 ; Data Section
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
-LineFeedCode                DB 0x0D, 0x0A, 0x00
-ImageName                   DB "MyOS Boot Loader", 0x00
-ResetFloppyDriveSuccess     DB "Reset Floppy Drive.....Success", 0x00
-ResetFloppyDriveFail        DB "Reset Floppy Drive.....Fail", 0x00
 
 TIMES 510 - ($ - $$) DB 0
 
 DW 0xAA55
+
+;********************************
+; Sector 0: Boot Sector END
+;*******************************
+
 
