@@ -62,7 +62,9 @@ BOOT:
 
 ; Reset Floppy Drive
           CALL    ResetFloppyDrive
-
+; Read Sectors
+          MOV     AX, 2000
+          CALL    ReadSectors
           HLT
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -118,12 +120,62 @@ ResetFloppyDrive:
 ; Show Success Message
           MOV     SI, ResetFloppyDriveSuccess
           CALL    DisplayLine
-          HLT
+          RET
 FAILURE:
 ; Show Fail Message
           MOV     SI, ResetFloppyDriveFail
           CALL    DisplayLine
           HLT
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; ReadSectors
+; Read Sectors
+;
+; input AX: logical sector number (LBA)
+;
+; セクタ:512バイト
+; シリンダ: 18セクタ (SecPerTrack)
+; ヘッド: 80シリンダ
+; 総セクタ: 2 x 80 x 18 = 2880 ( 0x0E04 )
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+ReadSectors:
+          CALL LBA2CHS                    ; 論理セクタを物理セクタに変換
+          MOV AH, 0x02                    ; セクタ読み込みモード
+          MOV AL, 0x01                    ; 1つのセクタだけ読み込み
+          MOV CH, BYTE [physicalTrack]    ; Track
+          MOV CL, BYTE [physicalSector]   ; Sector
+          MOV DH, BYTE [physicalHead]     ; Head
+          MOV DL, BYTE [BS_DrvNum]        ; Drive
+          MOV BX, 0x1000                  ;
+          MOV ES, BX                      ; アドレス0x10000から開始するセグメントに読み込みます
+          MOV BX, 0x0000                  ; セグメントの最初(オフセット0x0000)に読み込みます。
+          INT 0x13                        ; セクタを読み込みます
+          RET
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+; LBA2CHS
+; input AX: sector number (LBA)
+; output AX: quotient DX:Remainder
+; convert logical address to physical address
+; physical sector = (LBA MOD sectors per track) + 1
+; physical head   = (LBA / sectors per track) MOD number of headds
+; physical track  = LBA / (sectors per track * number of heads)
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+LBA2CHS:
+          XOR     DX, DX                        ; initialize DX
+          DIV     WORD [BPB_SecPerTrk]          ; calculate
+          INC     DL                            ; +1
+          MOV     BYTE [physicalSector], DL
+          XOR     DX, DX                        ; initialize DX
+          DIV     WORD [BPB_NumHeads]           ; calculate
+          MOV     BYTE [physicalHead], DL
+          MOV     BYTE [physicalTrack], AL
+          RET
+
+physicalSector  DB 0x00
+physicalHead    DB 0x00
+physicalTrack   DB 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
