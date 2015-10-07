@@ -1,7 +1,9 @@
 .PHONY: clean
 
-all:
-	nasm -o boot.img boot.asm
+boot.img:
+	nasm -o temp/bootsector.bin boot.asm
+	sh burn.sh
 
 clean:
-	rm -f boot.img
+	rm -f temp/*
+	rm -f bin/boot.img

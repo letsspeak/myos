@@ -30,13 +30,15 @@ JMP SHORT         BOOT                ;BS_jmpBoot
 BS_jmpBoot2       DB    0x90
 BS_OEMName        DB    "MyOS    "    ;OEMName(8bytes required)
 BPB_BytsPerSec    DW    0x0200        ;BytesPerSector(512)
-BPB_SecPerClus    DB    0x01          ;SectorPerCluster
+;BPB_SecPerClus    DB    0x01          ;SectorPerCluster
+BPB_SecPerClus    DB    0x02          ;SectorPerCluster *adjust to mkfs
 BPB_RsvdSecCnt    DW    0x0001        ;ReservedSectors
 BPB_NumFATs       DB    0x02          ;TotalFATs
 BPB_RootEntCnt    DW    0x00E0        ;MaxRootEntries(1.44M=1474560/512bytes=0xE0(224))
 BPB_TotSec16      DW    0x0B40        ;TotalSectors
 BPB_Media         DB    0xF0          ;MediaDescriptor(0xF0=RemovableMedia)
-BPB_FATSz16       DW    0x0009        ;SectorsPerFAT
+;BPB_FATSz16       DW    0x0009        ;SectorsPerFAT
+BPB_FATSz16       DW    0x0005        ;SectorsPerFAT *adjust to mkfs
 BPB_SecPerTrk     DW    0x0012        ;SectorsPerTrack(0x12(18))
 BPB_NumHeads      DW    0x0002        ;NumHeads
 BPB_HiddSec       DD    0x00000000    ;HiddenSector
@@ -81,9 +83,19 @@ BOOT:
           CALL    ResetFloppyDrive
 ; Load FAT
           CALL    LOAD_FAT
+          ; RESULT :
+          ;   AX => Root Directory Start Sector Number
+          CALL    LOAD_ROOT
+          ; RESULT :
+          ;   AX => Root Directory Start Sector Number
+          ;   CX => Root Directory Sector Count
+          CALL    BROWSE_ROOT_DIRECTORY
+
           HLT
 
+datasector                  DW 0x0000
 ImageName                   DB "MyOS Boot Loader", 0x00
+BrowseFileName              DB "test", 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -133,23 +145,23 @@ StartDispStr:
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ResetFloppyDrive:
+;          MOV     SI, ResetFloppyDriveBeginMessage
+;          CALL    DisplayString
           MOV   AH, 0x00
           MOV   DL, 0x00
           INT   0x13
           JC FAILURE
 ; Show Success Message
-          MOV     SI, ResetFloppyDriveSuccess
-          CALL    DisplayLine
+;          MOV     SI, SuccessMessage
+;          CALL    DisplayLine
           RET
 FAILURE:
 ; Show Fail Message
-          MOV     SI, ResetFloppyDriveFail
-          CALL    DisplayLine
+;          MOV     SI, FailMessage
+;          CALL    DisplayLine
           HLT
 
-ResetFloppyDriveSuccess     DB "Reset Floppy Drive.....Success", 0x00
-ResetFloppyDriveFail        DB "Reset Floppy Drive.....Fail", 0x00
-
+;ResetFloppyDriveBeginMessage     DB "Reset Floppy Drive.....", 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ; LBA2CHS
@@ -178,10 +190,12 @@ physicalTrack   DB 0x00
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
 ; Load FAT From Floppy
+; FATをBX_FAT_ADDRに読み込む
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 LOAD_FAT:
-; FATをアドレス0x7E00に読み込む
+          MOV     SI, LoadFatBeginMessage
+          CALL    DisplayString
           MOV     BX, WORD [BX_FAT_ADDR]        ; FATを読み込むアドレス0x7E00を引数BXに代入
           ADD     AX, WORD [BPB_RsvdSecCnt]     ; FATの開始セクタを取得
           XCHG    AX, CX                        ; FATの開始セクタを一旦CXレジスタに退避
@@ -197,11 +211,11 @@ READ_FAT:
           JCXZ    FAT_LOADED                    ; CX=0でZFが立ったら読み込み終了
           JMP     READ_FAT                      ; 次のセクタの読み込み
 FAT_LOADED:
-          MOV     SI, FatLoadedMessage
+          MOV     SI, SuccessMessage
           CALL    DisplayLine
           RET
 
-FatLoadedMessage     DB "FAT Loaded.", 0x00
+LoadFatBeginMessage     DB "FAT...", 0x00
 BX_FAT_ADDR       DW 0x7E00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -218,8 +232,8 @@ SECTORLOOP:
           PUSH    AX                        ; AX, BX, CX をスタックに退避
 ;          PUSH    BX
           PUSH    CX
-          MOV     SI, ReadSectorBeginMessage
-          CALL    DisplayString
+;          MOV     SI, ReadSectorBeginMessage
+;          CALL    DisplayString
           CALL    LBA2CHS                   ; 論理セクタを物理セクタに変換
           MOV     AH, 0x02                  ; セクタ読み込みモード
           MOV     AL, 0x01                  ; 1つのセクタだけ読み込み
@@ -230,8 +244,8 @@ SECTORLOOP:
           INT     0x13                      ; BIOS処理呼び出し
           JNC     ReadSectorSuccess         ; CFを見て成功失敗を判定
           ; エラー発生時の処理
-          MOV     SI, ReadSectorFailMessage
-          CALL    DisplayLine
+;          MOV     SI, FailMessage
+;          CALL    DisplayLine
           XOR     AX, AX
           INT     0x13                      ; ヘッドを初期位置に戻す
           DEC     DI                        ; エラーカウンタを減らす
@@ -241,12 +255,12 @@ SECTORLOOP:
           JNZ     SECTORLOOP                ; 読み取りのリトライ
           ; 読み取り失敗
           INT     0x18                      ; 謎
-          MOV     SI, ReadSectorFailEndMessage
-          CALL    DisplayLine
+;          MOV     SI, ReadSectorFailEndMessage
+;          CALL    DisplayLine
           HLT
 ReadSectorSuccess:
-          MOV     SI, ReadSectorSuccessMessage
-          CALL    DisplayLine
+;          MOV     SI, SuccessMessage
+;          CALL    DisplayLine
           POP     CX
           POP     AX
           RET
@@ -257,10 +271,89 @@ ReadSectorSuccess:
 ;          INT 0x13                        ; セクタを読み込みます
 ;          RET
 
-ReadSectorBeginMessage  DB "ReadSector...", 0x00
-ReadSectorSuccessMessage  DB "Success", 0x00
-ReadSectorFailMessage  DB "Fail", 0x00
-ReadSectorFailEndMessage  DB "ReadSectorFail", 0x00
+;ReadSectorBeginMessage  DB "ReadSector...", 0x00
+;ReadSectorFailEndMessage  DB "ReadSectorFail", 0x00
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; LOAD_ROOT
+; Load Root Directory
+; input
+;   AX: Root Directory Sector Number
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+LOAD_ROOT:
+          MOV     BX, WORD [BX_RTDIR_ADDR]  ; BX_RTDIR_ADDRのアドレスに格納します
+          XOR     CX, CX                    ; CXレジスタを初期化
+          MOV     WORD [datasector], AX
+          XCHG    AX, CX                    ; ルートディレクトリ開始セクタ番号をCXに退避
+          MOV     AX, 0x0020                ; エントリのサイズは32バイト(0x0020)
+          MUL     WORD [BPB_RootEntCnt]     ; エントリ数×エントリサイズをAXに格納
+          ADD     AX, WORD [BPB_BytsPerSec] ; AXに1セクタのバイト数を足す
+          DEC     AX                        ; AXから1を引く
+          DIV     WORD [BPB_BytsPerSec]     ; AX÷1セクタのバイト数
+          XCHG    AX, CX                    ; AX = ルートディレクトリ開始セクタ番号、CX= ルートディレクトリセクタ数
+          ADD     WORD [datasector], CX     ; datasector => ファイル領域の開始セクタ番号
+          RET
+
+BX_RTDIR_ADDR       DW 0x8E00
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; BROWSE_ROOT_DIRECTORY
+; Browse Root Directory
+; Requre:
+;   BX_RTDIR_ADDR
+;   BPB_RootEntCnt
+; Input
+;   BrowseFileName
+; Output
+;   AX : 開始クラスタ番号
+;   BX : File Address on Memory
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+BROWSE_ROOT_DIRECTORY:
+          MOV     SI, BrowseRootDirBeginMessage
+          CALL    DisplayString
+          MOV     BX, WORD[BX_RTDIR_ADDR]   ; 読み込んだルートディレクトリのアドレスを取得します
+          MOV     CX, WORD[BPB_RootEntCnt]  ; エントリの数を取得します
+          MOV     SI, BrowseFileName        ; 読み込みたいファイル名を取得します
+;          CALL    DisplayString
+;          PUSH    SI
+;          MOV     SI, BrowseRootDirBeginMessage2
+;          CALL    DisplayString
+;          POP     SI
+BROWSE_ROOT:
+          MOV     DI, BX                    ; ルートディレクトリのエントリのアドレスをDIに格納
+          PUSH    CX                        ; CX(エントリ数)を退避
+          MOV     CX, 0x000B                ; CXに0x000B(11)を格納
+          PUSH    DI                        ; DIを退避
+          PUSH    SI                        ; SIを退避
+REPE      CMPSB                             ; CX(=11)文字分CMPSBを繰り返す
+          POP     SI
+          POP     DI
+          JCXZ    BROWSE_ROOTDIR_FINISHED   ; CX=0 DIとSIの文字比較(CMPSB)結果で非一致カウントが0なら終了
+          ; ファイル名不一致
+          ADD     BX, 0x0020                ; 32バイト足して次のエントリへ
+          POP     CX
+          LOOP    BROWSE_ROOT               ; CX(エントリ数)回ループ
+          ; 全てのエントリのファイル名と不一致
+          JMP     BROWSE_ROOTDIR_FAILURE
+BROWSE_ROOTDIR_FINISHED:
+          ; ファイルを発見
+          POP     CX                        ; CXの値を元に戻す
+          MOV     AX, WORD [BX+0x001A]      ; 0x001A(26)バイト目の開始クラスタ番号をAXに代入
+          MOV     SI, SuccessMessage
+          CALL    DisplayLine
+          RET
+BROWSE_ROOTDIR_FAILURE:
+          ; ファイルが見つからなかった
+          MOV     SI, FailMessage
+          CALL    DisplayLine
+          HLT
+
+BrowseRootDirBeginMessage DB "RootDir...", 0x00
+;BrowseRootDirBeginMessage2 DB " ...", 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -268,6 +361,8 @@ ReadSectorFailEndMessage  DB "ReadSectorFail", 0x00
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
+SuccessMessage  DB "Success", 0x00
+FailMessage  DB "Fail", 0x00
 
 TIMES 510 - ($ - $$) DB 0
 
