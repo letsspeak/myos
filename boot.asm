@@ -30,15 +30,13 @@ JMP SHORT         BOOT                ;BS_jmpBoot
 BS_jmpBoot2       DB    0x90
 BS_OEMName        DB    "MyOS    "    ;OEMName(8bytes required)
 BPB_BytsPerSec    DW    0x0200        ;BytesPerSector(512)
-;BPB_SecPerClus    DB    0x01          ;SectorPerCluster
-BPB_SecPerClus    DB    0x02          ;SectorPerCluster *adjust to mkfs
+BPB_SecPerClus    DB    0x01          ;SectorPerCluster
 BPB_RsvdSecCnt    DW    0x0001        ;ReservedSectors
 BPB_NumFATs       DB    0x02          ;TotalFATs
 BPB_RootEntCnt    DW    0x00E0        ;MaxRootEntries(1.44M=1474560/512bytes=0xE0(224))
 BPB_TotSec16      DW    0x0B40        ;TotalSectors
 BPB_Media         DB    0xF0          ;MediaDescriptor(0xF0=RemovableMedia)
-;BPB_FATSz16       DW    0x0009        ;SectorsPerFAT
-BPB_FATSz16       DW    0x0005        ;SectorsPerFAT *adjust to mkfs
+BPB_FATSz16       DW    0x0009        ;SectorsPerFAT
 BPB_SecPerTrk     DW    0x0012        ;SectorsPerTrack(0x12(18))
 BPB_NumHeads      DW    0x0002        ;NumHeads
 BPB_HiddSec       DD    0x00000000    ;HiddenSector
@@ -95,7 +93,7 @@ BOOT:
 
 datasector                  DW 0x0000
 ImageName                   DB "MyOS Boot Loader", 0x00
-BrowseFileName              DB "test", 0x00
+BrowseFileName              DB "TEST", 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -328,6 +326,13 @@ BROWSE_ROOT:
           PUSH    CX                        ; CX(エントリ数)を退避
           MOV     CX, 0x000B                ; CXに0x000B(11)を格納
           PUSH    DI                        ; DIを退避
+
+; Show Message
+          PUSH    SI
+          MOV     SI, DI
+          CALL    DisplayLine
+          POP     SI
+
           PUSH    SI                        ; SIを退避
 REPE      CMPSB                             ; CX(=11)文字分CMPSBを繰り返す
           POP     SI
