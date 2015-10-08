@@ -77,6 +77,21 @@ BOOT:
           MOV     SI, ImageName
           CALL    DisplayLine
 
+; Debug Print Word Values
+;          PUSH    AX
+;          MOV     AX, 0xFFFF
+;PUT_LOOP:
+;          INC     AX
+;          CALL    PutWord
+;          PUSH    AX
+;          MOV     AL, 0x20
+;          CALL    PutAscii
+;          POP     AX
+;          CMP     AX, 0xFFFF
+;          JNZ     PUT_LOOP
+;          POP     AX
+;          HLT
+
 ; Reset Floppy Drive
           CALL    ResetFloppyDrive
 ; Load FAT
@@ -359,6 +374,51 @@ BROWSE_ROOTDIR_FAILURE:
 
 BrowseRootDirBeginMessage DB "RootDir...", 0x00
 ;BrowseRootDirBeginMessage2 DB " ...", 0x00
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; Put
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+PutWord:
+          PUSH    AX
+          MOV     AL, AH
+          CALL    PutByte
+          POP     AX
+          CALL    PutByte
+          RET
+PutByte:
+          PUSH    AX
+          PUSH    CX
+          MOV     AH, 0x00
+          MOV     CL, 0x10
+          DIV     CL
+          CALL    PutHex
+          MOV     AL, AH
+          CALL    PutHex
+          POP     CX
+          POP     AX
+          RET
+PutHex:
+          PUSH    AX
+          CMP     AL, 0x0A
+          JC      DoPutHex
+          ADD     AL, 0x07
+DoPutHex:
+          ADD     AL, 0x30
+          CALL    PutAscii
+          POP     AX
+          RET
+PutAscii:
+          PUSH    AX
+          PUSH    BX
+          MOV     AH, 0x0E
+          MOV     BH, 0x00
+          MOV     BL, 0x07
+          INT     0x10
+          POP     BX
+          POP     AX
+          RET
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
