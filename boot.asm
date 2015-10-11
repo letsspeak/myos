@@ -76,80 +76,19 @@ BOOT:
 ; Show Message
           MOV     SI, ImageName
           CALL    DisplayLine
-
-; Debug Print Word Values
-;          PUSH    AX
-;          MOV     AX, 0xFFFF
-;PUT_LOOP:
-;          INC     AX
-;          CALL    PutWord
-;          PUSH    AX
-;          MOV     AL, 0x20
-;          CALL    PutAscii
-;          POP     AX
-;          CMP     AX, 0xFFFF
-;          JNZ     PUT_LOOP
-;          POP     AX
-;          HLT
-
 ; Reset Floppy Drive
           CALL    ResetFloppyDrive
 ; Load FAT
-          CALL    LOAD_FAT
-          ; RESULT :
-          ;   AX => Root Directory Start Sector Number
-          CALL    LOAD_ROOT
-          ; RESULT :
-          ;   AX => Root Directory Start Sector Number
-          ;   CX => Root Directory Sector Count
-          CALL    BROWSE_ROOT_DIRECTORY
-
+          CALL    LOAD_FAT                ; RESULT : AX => Root Directory Start Sector Number
+; Load Root Directory
+          CALL    LOAD_ROOT               ; AX : Root Directory Start Sector Number
+; Browse Root Directory
+          CALL    BROWSE_ROOT_DIRECTORY   ; AX : Root Directory Start Sector Number
           HLT
 
 datasector                  DW 0x0000
-ImageName                   DB "MyOS Boot Loader", 0x00
-BrowseFileName              DB "TEST", 0x00
-
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-;
-; DisplayLine
-; display ASCIIZ string
-;
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-DisplayLine:
-          PUSH    AX
-          PUSH    BX
-          CALL    DisplayString
-          MOV     SI, LineFeedCode
-          CALL    DisplayString
-          POP     BX
-          POP     AX
-          RET
-
-LineFeedCode                DB 0x0D, 0x0A, 0x00
-
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-;
-; DisplayString
-; display ASCIIZ string
-;
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-DisplayString:
-          PUSH    AX
-          PUSH    BX
-StartDispStr:
-          LODSB
-          OR      AL, AL
-          JZ      .DONE
-          MOV     AH, 0x0E
-          MOV     BH, 0x00
-          MOV     BL, 0x07
-          INT     0x10
-          JMP     StartDispStr
-.DONE:
-          POP     BX
-          POP     AX
-          RET
+ImageName                   DB "MyOS", 0x00
+BrowseFileName              DB "TEST       ", 0x00 ; length = 11
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -158,23 +97,13 @@ StartDispStr:
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ResetFloppyDrive:
-;          MOV     SI, ResetFloppyDriveBeginMessage
-;          CALL    DisplayString
           MOV   AH, 0x00
           MOV   DL, 0x00
           INT   0x13
           JC FAILURE
-; Show Success Message
-;          MOV     SI, SuccessMessage
-;          CALL    DisplayLine
           RET
 FAILURE:
-; Show Fail Message
-;          MOV     SI, FailMessage
-;          CALL    DisplayLine
           HLT
-
-;ResetFloppyDriveBeginMessage     DB "Reset Floppy Drive.....", 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ; LBA2CHS
@@ -207,8 +136,6 @@ physicalTrack   DB 0x00
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 LOAD_FAT:
-          MOV     SI, LoadFatBeginMessage
-          CALL    DisplayString
           MOV     BX, WORD [BX_FAT_ADDR]        ; FATを読み込むアドレス0x7E00を引数BXに代入
           ADD     AX, WORD [BPB_RsvdSecCnt]     ; FATの開始セクタを取得
           XCHG    AX, CX                        ; FATの開始セクタを一旦CXレジスタに退避
@@ -224,11 +151,8 @@ READ_FAT:
           JCXZ    FAT_LOADED                    ; CX=0でZFが立ったら読み込み終了
           JMP     READ_FAT                      ; 次のセクタの読み込み
 FAT_LOADED:
-          MOV     SI, SuccessMessage
-          CALL    DisplayLine
           RET
 
-LoadFatBeginMessage     DB "FAT...", 0x00
 BX_FAT_ADDR       DW 0x7E00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -240,13 +164,13 @@ BX_FAT_ADDR       DW 0x7E00
 ;   AX: 読み込みたい論理セクタ(LBA)
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ReadSector:
+
           MOV     DI, 0x0005                ; エラー発生時5回までリトライする
 SECTORLOOP:
           PUSH    AX                        ; AX, BX, CX をスタックに退避
-;          PUSH    BX
+          PUSH    BX
           PUSH    CX
-;          MOV     SI, ReadSectorBeginMessage
-;          CALL    DisplayString
+
           CALL    LBA2CHS                   ; 論理セクタを物理セクタに変換
           MOV     AH, 0x02                  ; セクタ読み込みモード
           MOV     AL, 0x01                  ; 1つのセクタだけ読み込み
@@ -257,24 +181,19 @@ SECTORLOOP:
           INT     0x13                      ; BIOS処理呼び出し
           JNC     ReadSectorSuccess         ; CFを見て成功失敗を判定
           ; エラー発生時の処理
-;          MOV     SI, FailMessage
-;          CALL    DisplayLine
           XOR     AX, AX
           INT     0x13                      ; ヘッドを初期位置に戻す
           DEC     DI                        ; エラーカウンタを減らす
           POP     CX                        ; AX, BX, CX の退避データを元に戻す
-;          POP     BX
+          POP     BX
           POP     AX
           JNZ     SECTORLOOP                ; 読み取りのリトライ
           ; 読み取り失敗
           INT     0x18                      ; 謎
-;          MOV     SI, ReadSectorFailEndMessage
-;          CALL    DisplayLine
           HLT
 ReadSectorSuccess:
-;          MOV     SI, SuccessMessage
-;          CALL    DisplayLine
           POP     CX
+          POP     BX
           POP     AX
           RET
 
@@ -283,9 +202,6 @@ ReadSectorSuccess:
 ;          MOV BX, 0x0000                  ; セグメントの最初(オフセット0x0000)に読み込みます。
 ;          INT 0x13                        ; セクタを読み込みます
 ;          RET
-
-;ReadSectorBeginMessage  DB "ReadSector...", 0x00
-;ReadSectorFailEndMessage  DB "ReadSectorFail", 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -307,6 +223,18 @@ LOAD_ROOT:
           DIV     WORD [BPB_BytsPerSec]     ; AX÷1セクタのバイト数
           XCHG    AX, CX                    ; AX = ルートディレクトリ開始セクタ番号、CX= ルートディレクトリセクタ数
           ADD     WORD [datasector], CX     ; datasector => ファイル領域の開始セクタ番号
+          ; CX => numbers of Root sectors count
+          PUSH    AX
+          MOV     BX, WORD [BX_RTDIR_ADDR]      ; Root Directoryを格納するメモリアドレス
+READ_ROOT:
+          CALL    ReadSector                    ; FATを1セクタずつ読み込む(AX:LBA, BX:memory target)
+          ADD     BX, WORD [BPB_BytsPerSec]     ; 1セクタを読み込んだので格納アドレスに512バイト足す
+          INC     AX                            ; 次のセクタを読み込むのでAXに1を足す
+          DEC     CX                            ; 残りのFATサイズを1セクタ減らす
+          JCXZ    LOAD_ROOT_FINISHED            ; CX=0でZFが立ったら読み込み終了
+          JMP     READ_ROOT                     ; 次のセクタの読み込み
+LOAD_ROOT_FINISHED:
+          POP     AX
           RET
 
 BX_RTDIR_ADDR       DW 0x8E00
@@ -322,7 +250,6 @@ BX_RTDIR_ADDR       DW 0x8E00
 ;   BrowseFileName
 ; Output
 ;   AX : 開始クラスタ番号
-;   BX : File Address on Memory
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 BROWSE_ROOT_DIRECTORY:
@@ -331,24 +258,13 @@ BROWSE_ROOT_DIRECTORY:
           MOV     BX, WORD[BX_RTDIR_ADDR]   ; 読み込んだルートディレクトリのアドレスを取得します
           MOV     CX, WORD[BPB_RootEntCnt]  ; エントリの数を取得します
           MOV     SI, BrowseFileName        ; 読み込みたいファイル名を取得します
-;          CALL    DisplayString
-;          PUSH    SI
-;          MOV     SI, BrowseRootDirBeginMessage2
-;          CALL    DisplayString
-;          POP     SI
 BROWSE_ROOT:
           MOV     DI, BX                    ; ルートディレクトリのエントリのアドレスをDIに格納
           PUSH    CX                        ; CX(エントリ数)を退避
           MOV     CX, 0x000B                ; CXに0x000B(11)を格納
           PUSH    DI                        ; DIを退避
-
-; Show Message
-          PUSH    SI
-          MOV     SI, DI
-          CALL    DisplayLine
-          POP     SI
-
           PUSH    SI                        ; SIを退避
+
 REPE      CMPSB                             ; CX(=11)文字分CMPSBを繰り返す
           POP     SI
           POP     DI
@@ -372,8 +288,7 @@ BROWSE_ROOTDIR_FAILURE:
           CALL    DisplayLine
           HLT
 
-BrowseRootDirBeginMessage DB "RootDir...", 0x00
-;BrowseRootDirBeginMessage2 DB " ...", 0x00
+BrowseRootDirBeginMessage DB "Browse:", 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -422,15 +337,74 @@ PutAscii:
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
+; DisplayLine
+; display ASCIIZ string
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+DisplayLine:
+          CALL    DisplayString
+PutLineFeedCode:
+          MOV     SI, LineFeedCode
+          CALL    DisplayString
+          RET
+PutSpace:
+          MOV     SI, SpaceCode
+          CALL    DisplayString
+          RET
+
+SpaceCode                   DB 0x20, 0x00
+LineFeedCode                DB 0x0D, 0x0A, 0x00
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; DisplayString
+; display ASCIIZ string
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+DisplayString:
+          PUSH    AX
+          PUSH    BX
+StartDispStr:
+          LODSB
+          OR      AL, AL
+          JZ      .DONE
+          CALL    PutAscii
+          JMP     StartDispStr
+.DONE:
+          POP     BX
+          POP     AX
+          RET
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; DumpMemory
+; BX: Memory Address
+; CX: Size
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+DumpMemory:
+DUMP_LOOP:
+          MOV     AL, BYTE [BX]
+          CALL    PutByte
+          CALL    PutSpace
+          INC     BX
+          DEC     CX
+          JCXZ    DUMP_LOOP_DONE
+          JMP     DUMP_LOOP
+DUMP_LOOP_DONE:
+          CALL    PutLineFeedCode
+          RET
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
 ; Data Section
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
-SuccessMessage  DB "Success", 0x00
-FailMessage  DB "Fail", 0x00
+SuccessMessage  DB "OK", 0x00
+FailMessage  DB "NG", 0x00
 
 TIMES 510 - ($ - $$) DB 0
-
 DW 0xAA55
 
 ;********************************
