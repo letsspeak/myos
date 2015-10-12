@@ -8,22 +8,22 @@
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
-; DisplayMessage
+; PrintStr
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-DisplayMessage:
+PrintStr:
           PUSH    AX
           PUSH    BX
-StartDispMsg:
+StartPrintStr:
           LODSB
           OR      AL, AL
-          JZ      .DONE
+          JZ      PrintStrDone
           MOV     AH, 0x0E
           MOV     BH, 0x00
           MOV     BL, 0x07
           INT     0x10
-          JMP     StartDispMsg
-.DONE
+          JMP     StartPrintStr
+PrintStrDone
           POP     BX
           POP     AX
           RET
