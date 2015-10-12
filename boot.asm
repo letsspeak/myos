@@ -243,8 +243,8 @@ filesize_l                  DW 0x0000
 ;ImageName                   DB "OS", 0x00
 BrowseFileName              DB "TEST       ", 0x00 ; length = 11
 BX_FAT_ADDR                 DW 0x7E00
-BX_RTDIR_ADDR               DW 0x9000     ; + 0x1200(512x9)
-ES_IMAGE_ADDR               DW 0x0AC0     ; + 0x1C00(512x14) >>
+BX_RTDIR_ADDR               DW 0xA200     ; + FAT size 0x2400(512x9x2)
+ES_IMAGE_ADDR               DW 0x0050     ; 0x00000500
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
