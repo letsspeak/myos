@@ -1,10 +1,8 @@
-;/*****************************
 ; File:boot.asm
-; Description: MyOS Bootloader
-;****************************/
-[BITS 16]
+; Description: MyOS Boot Loader
 
-ORG       0x7C00
+[BITS 16]
+ORG 0x7C00
 
 ;==============================
 ;
@@ -214,23 +212,28 @@ CLUSTER_DONE:
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
-; Print File Data
+; Go to Kernal Loader
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-          MOV     BX, WORD [ES_IMAGE_ADDR]  ; ファイル格納先
-          MOV     ES, BX
-          XOR     BX, BX
-          MOV     CX, WORD [filesize_l]
-          ; TODO : DX...
-PRINT_FILE_LOOP:
-          PUSH    BX
-          MOV     AL, BYTE [ES:BX]
-          CALL    PutAscii
-          POP     BX
-          ADD     BX, 0x0001
-          DEC     CX
-          JNZ     PRINT_FILE_LOOP
+          PUSH    WORD [ES_IMAGE_ADDR]
+          PUSH    WORD 0x0000
+          RETF
+
           HLT
+
+;          MOV     BX, WORD [ES_IMAGE_ADDR]  ; ファイル格納先
+;          MOV     ES, BX
+;          XOR     BX, BX
+;          MOV     CX, WORD [filesize_l]
+;PRINT_FILE_LOOP:
+;          PUSH    BX
+;          MOV     AL, BYTE [ES:BX]
+;          CALL    PutAscii
+;          POP     BX
+;          ADD     BX, 0x0001
+;          DEC     CX
+;          JNZ     PRINT_FILE_LOOP
+;          HLT
 BOOT_FAIL:
           HLT
 
@@ -241,7 +244,7 @@ filesize_h                  DW 0x0000
 filesize_l                  DW 0x0000
 
 ;ImageName                   DB "OS", 0x00
-BrowseFileName              DB "TEST       ", 0x00 ; length = 11
+BrowseFileName              DB "KLOADER IMG", 0x00 ; length = 11
 BX_FAT_ADDR                 DW 0x7E00
 BX_RTDIR_ADDR               DW 0xA200     ; + FAT size 0x2400(512x9x2)
 ES_IMAGE_ADDR               DW 0x0050     ; 0x00000500
