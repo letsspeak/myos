@@ -20,9 +20,6 @@ ORG 0x500
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 msgphello                   DB 0x0D, 0x0A, "Hello", 0x0D, 0x0A, 0x00
-CODE_DESC DB 0x08
-DATA_DESC DB 0x10
-
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -40,10 +37,11 @@ KLoader_Main:
 
           CALL    Load_Kernel
 
-          MOV     AX, 0x9000        ; set stack pointer to 0x0009FFFC
-          MOV     SS, AX
-          MOV     SP, 0xFFFC
-          CALL    _setup_gdt
+;          MOV     AX, 0x9000        ; set stack pointer to 0x0009FFFC
+;          MOV     SS, AX
+;          MOV     SP, 0xFFFC
+          CLI
+          LGDT    [gdtr]
           CALL    Enable_A20
 
 
@@ -56,7 +54,7 @@ Enter_pmode:
           MOV     EAX, CR0
           OR      EAX, 0x00000001   ; without paging
           MOV     CR0, EAX
-          JMP     CODE_DESC:Pmode_start
+          JMP     (CODE_DESC - NULL_DESC) :Pmode_start
 
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -67,39 +65,18 @@ Enter_pmode:
 Load_Kernel:
           RET
 
-
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
-; Set up GDT
+; Global Descriptor Table(GDT)
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-_setup_gdt:
-;          CLI
-          PUSHA
-          LGDT    [gdt_toc]
-;          STI
-          POPA
-          RET
-
-
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-;
-; Global Descriptor Table
-;
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-
-gdt_toc:
-          DW 8*4                    ; 64bit * 4 descriptors
-          DD _gdt
-
-_gdt:
-          ; Null descriptor
+NULL_DESC:
           DW 0x0000
           DW 0x0000
           DW 0x0000
           DW 0x0000
 
-          ; Code descriptor
+CODE_DESC:
           DW 0xFFFF                   ; Segment Limit Low
           DW 0x0000                   ; Base Address Low
           DB 0x00                     ; Base Address Mid
@@ -107,7 +84,7 @@ _gdt:
           DB 11001111b                ; Segment Limit Hi(4), AVL(1), 0, D/B(1), G(1)
           DB 0x00                     ; Base Address Hi
 
-          ; Data descriptor
+DATA_DESC:
           DW 0xFFFF                   ; Segment Limit Low
           DW 0x0000                   ; Base Address Low
           DB 0x00                     ; Base Address Mid
@@ -115,11 +92,9 @@ _gdt:
           DB 11001111b                ; Segment Limit Hi(4), AVL(1), 0, D/B(1), G(1)
           DB 0x00                     ; Base Address Hi
 
-          ; TEMPORARY
-          DW 0x0000
-          DW 0x0000
-          DW 0x0000
-          DW 0x0000
+gdtr:
+    Limit dw gdtr - NULL_DESC - 1 ; length of GDT
+    BASE  dd NULL_DESC ; base of GDT
 
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -140,8 +115,6 @@ _gdt:
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 Enable_A20:
-;          CLI
-
           CALL    A20_Flag_Wait
           MOV     AL, 0xAD        ; 0xAD Disable Keyboard
           OUT     0x64, AL        ; Controller Command
@@ -168,7 +141,6 @@ Enable_A20:
           OUT     0x64, AL        ; Controller Command
 
           CALL    A20_Flag_Wait
-;          STI
           RET
 
 A20_Flag_Wait:
@@ -192,8 +164,7 @@ A20_Output_Wait
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 [BITS 32]
 Pmode_start:
-          HLT
-          MOV     AX, DATA_DESC  ; 0x10
+          MOV     AX, DATA_DESC - NULL_DESC
           MOV     SS, AX
           MOV     ES, AX
           MOV     FS, AX
