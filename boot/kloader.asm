@@ -12,6 +12,7 @@ ORG 0x500
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 %include "boot/print.asm"
+%include "boot/fat12.asm"
 
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -19,7 +20,14 @@ ORG 0x500
 ; Data Section
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-msgphello                   DB 0x0D, 0x0A, "Hello", 0x0D, 0x0A, 0x00
+
+WelcomeMessage              DB 0x0D, 0x0A, "Welcome To MyOS Kernel Loader", 0x0D, 0x0A, 0x00
+SearchingMessage            DB "Searching Kernel Image...", 0x00
+LoadingMessage              DB "Loading Kernal Image...", 0x00
+SwitchingMessage            DB "Switching to Protected Mode...", 0x00
+SuccessMessage              DB "SUCESS", 0x00
+FailMessage                 DB "FAIL", 0x00
+CriticalErrorMessage        DB "CRITICAL ERROR", 0x00
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -34,12 +42,15 @@ KLoader_Main:
           MOV     DS, AX
           MOV     ES, AX
 
+; Show Welcome Message
+          MOV     SI, WelcomeMessage
+          CALL    PrintStr
 
           CALL    Load_Kernel
 
-;          MOV     AX, 0x9000        ; set stack pointer to 0x0009FFFC
-;          MOV     SS, AX
-;          MOV     SP, 0xFFFC
+          MOV     SI, SwitchingMessage
+          CALL    PrintStr
+
           CLI
           LGDT    [gdtr]
           CALL    Enable_A20

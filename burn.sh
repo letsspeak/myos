@@ -7,6 +7,7 @@ MOUNT_RESULT=`hdiutil mount temp/boot.img`
 MOUNT_DEVICE=`echo $MOUNT_RESULT | awk '{print $1}'`
 MOUNT_PATH=`echo $MOUNT_RESULT | awk '{print $2}'`
 cp -v temp/KLOADER.IMG $MOUNT_PATH
+cp -v temp/KERNEL.IMG $MOUNT_PATH
 sleep 3
 umount $MOUNT_DEVICE
 dd bs=512 count=1 if=temp/bootsector.img of=temp/boot.img conv=notrunc
