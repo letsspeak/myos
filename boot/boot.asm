@@ -176,7 +176,7 @@ BROWSE_ROOT_FINISHED:
 ; Load Image
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-          MOV     BX, WORD [ES_IMAGE_ADDR]  ; ファイル格納先
+          MOV     BX, WORD [ES_IMAGE_SEG]  ; ファイル格納先
           MOV     ES, BX
           XOR     BX, BX
           PUSH    BX
@@ -215,13 +215,13 @@ CLUSTER_DONE:
 ; Go to Kernal Loader
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-          PUSH    WORD [ES_IMAGE_ADDR]
+          PUSH    WORD [ES_IMAGE_SEG]
           PUSH    WORD 0x0000
           RETF
 
           HLT
 
-;          MOV     BX, WORD [ES_IMAGE_ADDR]  ; ファイル格納先
+;          MOV     BX, WORD [ES_IMAGE_SEG]  ; ファイル格納先
 ;          MOV     ES, BX
 ;          XOR     BX, BX
 ;          MOV     CX, WORD [filesize_l]
@@ -247,7 +247,7 @@ filesize_l                  DW 0x0000
 BrowseFileName              DB "KLOADER IMG", 0x00 ; length = 11
 BX_FAT_ADDR                 DW 0x7E00
 BX_RTDIR_ADDR               DW 0xA200     ; + FAT size 0x2400(512x9x2)
-ES_IMAGE_ADDR               DW 0x0050     ; 0x00000500
+ES_IMAGE_SEG                DW 0x0050     ; 0x0500 => Kernel Loader
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;

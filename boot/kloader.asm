@@ -2,7 +2,7 @@
 ; Description: MyOS Kernel Loader
 
 [BITS 16]
-ORG 0x500
+ORG 0x0500
 
           JMP     KLoader_Main
 
@@ -13,6 +13,7 @@ ORG 0x500
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 %include "boot/print.asm"
 %include "boot/fat12.asm"
+%include "boot/dump.asm"
 
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -42,19 +43,46 @@ KLoader_Main:
           MOV     DS, AX
           MOV     ES, AX
 
+
 ; Show Welcome Message
           MOV     SI, WelcomeMessage
+          CALL    PrintStr
+          CALL    PutLineFeedCode
+
+; Search Kernel
+          MOV     SI, SearchingMessage
+          CALL    PrintStr
+
+          CALL    Find_Kernel
+          CMP     AX, 0
+          JNE     KLoader_Fail
+
+          MOV     SI, SuccessMessage
+          CALL    PrintLine
+          HLT
+
+; Load Kernel
+          MOV     SI, LoadingMessage
           CALL    PrintStr
 
           CALL    Load_Kernel
 
+          MOV     SI, SuccessMessage
+          CALL    PrintLine
+
+; Switch to Protected Mode
           MOV     SI, SwitchingMessage
           CALL    PrintStr
 
           CLI
           LGDT    [gdtr]
           CALL    Enable_A20
+          JMP     Enter_pmode
 
+KLoader_Fail:
+          MOV     SI, FailMessage
+          CALL    PrintLine
+          HLT
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -66,15 +94,6 @@ Enter_pmode:
           OR      EAX, 0x00000001   ; without paging
           MOV     CR0, EAX
           JMP     (CODE_DESC - NULL_DESC) :Pmode_start
-
-
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-;
-; Load Kernel (Temporary)
-;
-;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-Load_Kernel:
-          RET
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -181,8 +200,77 @@ Pmode_start:
           MOV     FS, AX
           MOV     GS, AX
           MOV     DS, AX
-          HLT
 
           MOV     ESP, 90000h    ; initialize stac pointer
+
           HLT
+
+CopyKernelImage:
+; get kernel image size
+          XOR     EAX, EAX
+          MOVZX   EAX, WORD [ImageSizeES]
+          SHL     EAX, 0x4
+          MOV     DWORD [KernelImageSize], EAX
+; copy
+          CLD
+          MOV     ESI, KERNEL_RMODE_BASE_SEG
+          MOV     EDI, KERNEL_PMODE_BASE
+          MOV     ECX, EAX
+REP       MOVSD
+          JMP     EXECUTE
+
+
+Failure2:
+          HLT
+          JMP     Failure2
+
+EXECUTE:
+          ;---------------------------
+          ;  Execute Kernel
+          ;---------------------------
+          MOV     EBX, KERNEL_PMODE_BASE
+          MOV     EBP, EBX
+
+          XOR     EBX, EBX
+          CLI
+          CALL    EBP
+          ADD     ESP, 4
+          JMP     Failure2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
