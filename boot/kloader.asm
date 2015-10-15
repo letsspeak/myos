@@ -59,7 +59,6 @@ KLoader_Main:
 
           MOV     SI, SuccessMessage
           CALL    PrintLine
-          HLT
 
 ; Load Kernel
           MOV     SI, LoadingMessage
@@ -213,7 +212,7 @@ CopyKernelImage:
           MOV     DWORD [KernelImageSize], EAX
 ; copy
           CLD
-          MOV     ESI, KERNEL_RMODE_BASE_SEG
+          MOV     ESI, [KERNEL_RMODE_BASE_SEG]
           MOV     EDI, KERNEL_PMODE_BASE
           MOV     ECX, EAX
 REP       MOVSD

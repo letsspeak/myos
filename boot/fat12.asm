@@ -30,6 +30,7 @@ physicalTrack               DB 0x00
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 BX_FAT_ADDR                 DW 0x0200
 BX_RTDIR_ADDR               DW 0x2600
+ReadSectorFailMessage       DB "FAIL to Read Sector", 0x00
 
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -40,21 +41,12 @@ BX_RTDIR_ADDR               DW 0x2600
 Find_Kernel:
         PUSHA
         MOV     BX, WORD [ES_BASE_SEG]
-        MOV     BX, 0x0000
         MOV     ES, BX
         MOV     BX, WORD [BX_RTDIR_ADDR]
-        MOV     BX, 0xA200
         MOV     CX, WORD [BPB_RootEntCnt]
         MOV     SI, KernelImageName
 
-        CALL    PrintStr
-        HLT
-
 Finding_File:
-
-        ; ES = 0x0000, BX = 0xA200 works
-        ; ES = 0x07C0, BX = 0x2600 not works !!
-
         MOV     DI, BX
         PUSH    CX
         MOV     CX, 0x000B
@@ -77,7 +69,8 @@ FAILURE:
 
 Found_File:
         POP     CX
-        MOV     WORD [KernelImageCluster], BX
+        MOV     AX, WORD [ES:BX+0x001A]
+        MOV     WORD [KernelImageCluster], AX
         POPA
         MOV     AX, 0
         RET
@@ -91,34 +84,24 @@ Found_File:
 Load_Kernel:
         PUSHA
         MOV     WORD [datasector], 0x0021
-        MOV     BX, ES_BASE_SEG
+        MOV     BX, [KERNEL_RMODE_BASE_SEG]
         MOV     ES, BX
-        MOV     BX, WORD [KernelImageCluster]
-        ADD     BX, 0x001A
-
-        MOV     AX, WORD [ES:BX]
-        MOV     BX, KERNEL_RMODE_BASE_SEG
-        MOV     ES, BX
-        MOV     BX, KERNEL_RMODE_BASE_ADDR
+        MOV     BX, [KERNEL_RMODE_BASE_ADDR]
         PUSH    BX
+        MOV     AX, WORD [KernelImageCluster]
         MOV     WORD [cluster], AX
 
 Load_Image:
         MOV     AX, WORD [cluster]
         POP     BX
-        XOR     BX, BX  ; ???
         CALL    ClusterLBA
-
-        XOR     CX, CX
-        MOV     CL, BYTE [BPB_SecPerClus]
-
         CALL    ReadSector
+        PUSH    BX
         MOV     BX, ES
         ADD     BX, 0x0020
         MOV     ES, BX
 
-ES_ADDED
-        PUSH    BX
+ES_ADDED:
 ; 次のクラスタ番号取得
         MOV     AX, WORD [cluster]
         MOV     CX, AX
@@ -126,9 +109,9 @@ ES_ADDED
         SHR     DX, 0x0001
         ADD     CX, DX
         PUSH    ES
-        MOV     BX, ES_BASE_SEG
+        MOV     BX, [ES_BASE_SEG]
         MOV     ES, BX
-        MOV     BX, BX_FAT_ADDR
+        MOV     BX, [BX_FAT_ADDR]
         ADD     BX, CX
         MOV     DX, WORD [ES:BX]
         POP     ES
@@ -144,13 +127,13 @@ LOCAL_DONE:
         MOV     WORD [cluster], DX
         CMP     DX, 0x0FF0
         JB      Load_Image
+        POP     BX
 
 ALL_DONE:
-        POP     BX
         XOR     BX, BX
         MOV     WORD [ImageSizeBX], BX
         MOV     BX, ES
-        SUB     BX, KERNEL_RMODE_BASE_SEG
+        SUB     BX, [KERNEL_RMODE_BASE_SEG]
         MOV     WORD [ImageSizeES], BX
         POPA
         RET
@@ -165,7 +148,7 @@ ALL_DONE:
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ReadSector:
-        MOV     DI, 0x0005
+        MOV     DI, 0x0005                ; エラーカウンタ5回まで再試行
 SECTORLOOP:
         PUSH    AX
         PUSH    BX
@@ -178,20 +161,25 @@ SECTORLOOP:
         MOV     DH, BYTE [physicalHead]   ; Head
         MOV     DL, BYTE [BS_DrvNum]      ; Drive
         INT     0x13                      ; BIOS処理呼び出し
-        JNC     SUCCESS
+        JNC     ReadSectorSuccess
 
-        MOV     AH, 0x01
-        INT     0x13
+;        MOV     AH, 0x01
+;        INT     0x13
+
         XOR     AX, AX
-        INT     0x13
+        INT     0x13                      ; ヘッドを初期位置に戻す
         DEC     DI
         POP     CX
         POP     BX
         POP     AX
-        JNZ     SECTORLOOP
-        INT     0x18
+        JNZ     SECTORLOOP                ; Retry
 
-SUCCESS:
+        MOV     SI, ReadSectorFailMessage
+        CALL    PrintLine
+        INT     0x18
+        HLT
+
+ReadSectorSuccess:
         POP     CX
         POP     BX
         POP     AX
