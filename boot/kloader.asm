@@ -202,7 +202,44 @@ Pmode_start:
 
           MOV     ESP, 90000h    ; initialize stac pointer
 
+;      MOV   EAX, 0x00000741
+;      MOV   EBX, 0x000B8000
+;      MOV   [EBX], EAX
+;      HLT
+
+;;test
+;          MOV     EBX, 0x00100000
+;          MOV     EAX, 0x000741B8
+;          MOV     [EBX], EAX
+;          MOV     EAX, 0x8000BB00
+;          MOV     [EBX+4], EAX
+;          MOV     EAX, 0x0389000B
+;          MOV     [EBX+8], EAX
+;          MOV     EAX, 0x000000F4
+;          MOV     [EBX+12], EAX
+;          MOV     EBP, EBX
+;          XOR     EBX, EBX
+;          CALL    EBP
+;          ADD     ESP, 4
+;          HLT
+
+
+          CALL    Cls32
+
+;          MOV     ECX, 0x51
+;OUTPUT:
+          MOV     AL, 0x42
+          CALL    PutAscii32
+          MOV     AL, 0x42
+          CALL    PutAscii32
+          MOV     AL, 0x42
+          CALL    PutAscii32
+
+;          DEC     ECX
+;          CMP     ECX, 0
+;          JNE     OUTPUT
           HLT
+
 
 CopyKernelImage:
 ; get kernel image size
@@ -213,7 +250,7 @@ CopyKernelImage:
 ; copy
           CLD
           MOV     ESI, [KERNEL_RMODE_BASE_SEG]
-          MOV     EDI, KERNEL_PMODE_BASE
+          MOV     EDI, [KERNEL_PMODE_BASE]
           MOV     ECX, EAX
 REP       MOVSD
           JMP     EXECUTE
@@ -227,7 +264,7 @@ EXECUTE:
           ;---------------------------
           ;  Execute Kernel
           ;---------------------------
-          MOV     EBX, KERNEL_PMODE_BASE
+          MOV     EBX, [KERNEL_PMODE_BASE]
           MOV     EBP, EBX
 
           XOR     EBX, EBX
@@ -235,41 +272,4 @@ EXECUTE:
           CALL    EBP
           ADD     ESP, 4
           JMP     Failure2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

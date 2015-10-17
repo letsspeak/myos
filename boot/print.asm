@@ -87,4 +87,65 @@ PrintStrDone
           POP     AX
           RET
 
+[BITS 32]
+
+DISPLAY_MEMSIZE DD 0x02
+DISPLAY_WIDTH DD 0x50
+DISPLAY_HEIGHT DD 0x19
+
+CURSOR_X DD 0x4F
+CURSOR_Y DD 0x0
+
+PutAscii32:
+          PUSH    EAX
+          PUSH    EBX
+
+          OR      EAX, 0x00000700
+          PUSH    EAX
+
+          MOV     EAX, DWORD [DISPLAY_MEMSIZE]
+          MUL     DWORD [CURSOR_X]
+          MOV     EBX, EAX
+
+          MOV     EAX, DWORD [DISPLAY_WIDTH]
+          MUL     DWORD [CURSOR_Y]
+          ADD     EBX, EAX
+          OR      EBX, 0x000B8000
+
+          POP     EAX
+          MOV     [EBX], EAX
+
+          MOV     EAX, DWORD [CURSOR_X]
+          MOV     EBX, DWORD [CURSOR_Y]
+          INC     EAX
+          CMP     EAX, DWORD [DISPLAY_WIDTH]
+          JNE     PutAsciiIncCursorCompleted
+
+          MOV     EAX, 0
+          MOV     EBX, DWORD [CURSOR_Y]
+          INC     EBX
+          CMP     EBX, DWORD [DISPLAY_HEIGHT]
+          JNE     PutAsciiIncCursorCompleted
+          MOV     EBX, 0
+
+PutAsciiIncCursorCompleted:
+          MOV     DWORD [CURSOR_X], EAX
+          MOV     DWORD [CURSOR_Y], EBX
+          POP     EBX
+          POP     EAX
+          RET
+
+Cls32:
+          MOV     EAX, DWORD [DISPLAY_WIDTH]
+          MUL     DWORD [DISPLAY_HEIGHT]
+          MOV     ECX, EAX
+          MOV     EBX, 0x000B8000
+Cls32PutSpace:
+          MOV     EAX, 0x07200720
+          MOV     [EBX], EAX
+          ADD     EBX, 4
+          SUB     ECX, 2
+          JNZ    Cls32PutSpace
+          RET
+
 %endif
