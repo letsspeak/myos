@@ -226,20 +226,19 @@ Pmode_start:
 
           CALL    Cls32
 
-;          MOV     ECX, 0x51
-;OUTPUT:
-          MOV     AL, 0x42
-          CALL    PutAscii32
-          MOV     AL, 0x42
-          CALL    PutAscii32
-          MOV     AL, 0x42
-          CALL    PutAscii32
+          MOV     SI, TestMessage
+          CALL    PrintStr32
 
+;          MOV     ECX, 80*25
+;OUTPUT:
+;          MOV     AL, 0x42
+;          CALL    PutAscii32
 ;          DEC     ECX
 ;          CMP     ECX, 0
 ;          JNE     OUTPUT
           HLT
 
+TestMessage DB "This is the test", 0x0D, 0x0A, "next line", 0x00
 
 CopyKernelImage:
 ; get kernel image size

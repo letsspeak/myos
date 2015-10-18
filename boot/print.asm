@@ -82,7 +82,7 @@ StartPrintStr:
           JZ      PrintStrDone
           CALL    PutAscii
           JMP     StartPrintStr
-PrintStrDone
+PrintStrDone:
           POP     BX
           POP     AX
           RET
@@ -93,47 +93,11 @@ DISPLAY_MEMSIZE DD 0x02
 DISPLAY_WIDTH DD 0x50
 DISPLAY_HEIGHT DD 0x19
 
-CURSOR_X DD 0x4F
+CURSOR_X DD 0x0
 CURSOR_Y DD 0x0
 
-PutAscii32:
-          PUSH    EAX
-          PUSH    EBX
-
-          OR      EAX, 0x00000700
-          PUSH    EAX
-
-          MOV     EAX, DWORD [DISPLAY_MEMSIZE]
-          MUL     DWORD [CURSOR_X]
-          MOV     EBX, EAX
-
-          MOV     EAX, DWORD [DISPLAY_WIDTH]
-          MUL     DWORD [CURSOR_Y]
-          ADD     EBX, EAX
-          OR      EBX, 0x000B8000
-
-          POP     EAX
-          MOV     [EBX], EAX
-
-          MOV     EAX, DWORD [CURSOR_X]
-          MOV     EBX, DWORD [CURSOR_Y]
-          INC     EAX
-          CMP     EAX, DWORD [DISPLAY_WIDTH]
-          JNE     PutAsciiIncCursorCompleted
-
-          MOV     EAX, 0
-          MOV     EBX, DWORD [CURSOR_Y]
-          INC     EBX
-          CMP     EBX, DWORD [DISPLAY_HEIGHT]
-          JNE     PutAsciiIncCursorCompleted
-          MOV     EBX, 0
-
-PutAsciiIncCursorCompleted:
-          MOV     DWORD [CURSOR_X], EAX
-          MOV     DWORD [CURSOR_Y], EBX
-          POP     EBX
-          POP     EAX
-          RET
+ASCII_CR_CODE DB 0x0D
+ASCII_LF_CODE DB 0x0A
 
 Cls32:
           MOV     EAX, DWORD [DISPLAY_WIDTH]
@@ -146,6 +110,95 @@ Cls32PutSpace:
           ADD     EBX, 4
           SUB     ECX, 2
           JNZ    Cls32PutSpace
+          RET
+
+PutAscii32:
+          PUSH    EAX
+          CALL    CheckControlCode32
+          CMP     AX, 0
+          JNE     PutAscii32Return
+          POP     EAX
+
+          PUSH    EAX
+          PUSH    EBX
+
+          OR      EAX, 0x00000700
+          PUSH    EAX
+
+          MOV     EAX, DWORD [DISPLAY_MEMSIZE]
+          MUL     DWORD [CURSOR_X]
+          MOV     EBX, EAX
+
+          MOV     EAX, DWORD [DISPLAY_MEMSIZE]
+          MUL     DWORD [DISPLAY_WIDTH]
+          MUL     DWORD [CURSOR_Y]
+          ADD     EBX, EAX
+          OR      EBX, 0x000B8000
+
+          POP     EAX
+          MOV     [EBX], EAX
+
+          MOV     EAX, DWORD [CURSOR_X]
+          MOV     EBX, DWORD [CURSOR_Y]
+          INC     EAX
+          CMP     EAX, DWORD [DISPLAY_WIDTH]
+          JNE     PutAscii32IncCursorCompleted
+
+          MOV     EAX, 0
+          MOV     EBX, DWORD [CURSOR_Y]
+          INC     EBX
+          CMP     EBX, DWORD [DISPLAY_HEIGHT]
+          JNE     PutAscii32IncCursorCompleted
+          MOV     EBX, 0
+
+PutAscii32IncCursorCompleted:
+          MOV     DWORD [CURSOR_X], EAX
+          MOV     DWORD [CURSOR_Y], EBX
+          POP     EBX
+PutAscii32Return:
+          POP     EAX
+          RET
+
+
+CheckControlCode32:
+          ; switch (AL)
+          CMP     AL, BYTE [ASCII_CR_CODE]
+          JE      CheckControlCode32CRCode
+          CMP     AL, BYTE [ASCII_LF_CODE]
+          JE      CheckControlCode32LFCode
+          JMP     CheckControlCode32ReturnFalse
+
+CheckControlCode32CRCode:
+          ;ASCII_CR_CODE
+          MOV     EAX, 0
+          MOV     DWORD [CURSOR_X], EAX
+          JMP     CheckControlCode32ReturnTrue
+CheckControlCode32LFCode:
+          ;ASCII_LF_CODE
+          MOV     EAX, DWORD [CURSOR_Y]
+          INC     EAX
+          MOV     DWORD [CURSOR_Y], EAX
+          JMP     CheckControlCode32ReturnTrue
+CheckControlCode32ReturnFalse:
+          MOV     EAX, 0
+          RET
+CheckControlCode32ReturnTrue:
+          MOV     EAX, 1
+          RET
+
+
+PrintStr32:
+          PUSH    AX
+          PUSH    BX
+StartPrintStr32:
+          LODSB
+          OR      AL, AL
+          JZ      PrintStrDone32
+          CALL    PutAscii32
+          JMP     StartPrintStr32
+PrintStrDone32:
+          POP     BX
+          POP     AX
           RET
 
 %endif
