@@ -99,7 +99,20 @@ CURSOR_Y DD 0x0
 ASCII_CR_CODE DB 0x0D
 ASCII_LF_CODE DB 0x0A
 
+SetCursor32:
+          PUSH    EAX
+          AND     EAX, 0x000000FF
+          MOV     DWORD [CURSOR_X], EAX
+          POP     EAX
+          PUSH    EAX
+          MOV     AL, AH
+          AND     EAX, 0x000000FF
+          MOV     DWORD [CURSOR_Y], EAX
+          POP     EAX
+          RET
+
 Cls32:
+          PUSHA
           MOV     EAX, DWORD [DISPLAY_WIDTH]
           MUL     DWORD [DISPLAY_HEIGHT]
           MOV     ECX, EAX
@@ -109,7 +122,10 @@ Cls32PutSpace:
           MOV     [EBX], EAX
           ADD     EBX, 4
           SUB     ECX, 2
-          JNZ    Cls32PutSpace
+          JNZ     Cls32PutSpace
+          XOR     EAX, EAX
+          CALL    SetCursor32
+          POPA
           RET
 
 PutAscii32:
@@ -122,6 +138,7 @@ PutAscii32:
           PUSH    EAX
           PUSH    EBX
 
+          AND     EAX, 0x000000FF
           OR      EAX, 0x00000700
           PUSH    EAX
 
@@ -186,6 +203,36 @@ CheckControlCode32ReturnTrue:
           MOV     EAX, 1
           RET
 
+PutWord32:
+          PUSH    EAX
+          MOV     AL, AH
+          CALL    PutByte32
+          POP     EAX
+          CALL    PutByte32
+          RET
+PutByte32:
+          PUSH    EAX
+          PUSH    ECX
+          AND     EAX, 0x000000FF
+          MOV     CL, 0x10
+          DIV     CL
+          CALL    PutHex32
+          MOV     AL, AH
+          CALL    PutHex32
+          POP     ECX
+          POP     EAX
+          RET
+PutHex32:
+          PUSH    EAX
+          CMP     AL, 0x0A
+          JC      DoPutHex32
+          ADD     AL, 0x07
+DoPutHex32:
+          ADD     AL, 0x30
+          CALL    PutAscii32
+          POP     EAX
+          RET
+
 
 PrintStr32:
           PUSH    AX
@@ -200,5 +247,17 @@ PrintStrDone32:
           POP     BX
           POP     AX
           RET
+
+PrintLine32:
+          CALL    PrintStr32
+PutLineFeedCode32:
+          MOV     SI, LineFeedCode
+          CALL    PrintStr32
+          RET
+PutSpace32:
+          MOV     SI, SpaceCode
+          CALL    PrintStr32
+          RET
+
 
 %endif

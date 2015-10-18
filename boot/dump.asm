@@ -28,4 +28,25 @@ DUMP_LOOP_DONE:
           CALL    PutLineFeedCode
           RET
 
+[BITS 32]
+
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+;
+; DumpMemory32
+; EBX: Memory Address
+; ECX: Size (byte dump times)
+;
+;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+DumpMemory32:
+          MOV     AL, BYTE [EBX]
+          CALL    PutByte32
+          CALL    PutSpace32
+          INC     EBX
+          DEC     ECX
+          JCXZ    DumpMemory32LoopDone
+          JMP     DumpMemory32
+DumpMemory32LoopDone:
+          CALL    PutLineFeedCode32
+          RET
+
 %endif

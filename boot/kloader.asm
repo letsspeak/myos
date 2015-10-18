@@ -15,6 +15,7 @@ ORG 0x0500
 %include "boot/fat12.asm"
 %include "boot/dump.asm"
 
+[BITS 16]
 
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 ;
@@ -202,44 +203,6 @@ Pmode_start:
 
           MOV     ESP, 90000h    ; initialize stac pointer
 
-;      MOV   EAX, 0x00000741
-;      MOV   EBX, 0x000B8000
-;      MOV   [EBX], EAX
-;      HLT
-
-;;test
-;          MOV     EBX, 0x00100000
-;          MOV     EAX, 0x000741B8
-;          MOV     [EBX], EAX
-;          MOV     EAX, 0x8000BB00
-;          MOV     [EBX+4], EAX
-;          MOV     EAX, 0x0389000B
-;          MOV     [EBX+8], EAX
-;          MOV     EAX, 0x000000F4
-;          MOV     [EBX+12], EAX
-;          MOV     EBP, EBX
-;          XOR     EBX, EBX
-;          CALL    EBP
-;          ADD     ESP, 4
-;          HLT
-
-
-          CALL    Cls32
-
-          MOV     SI, TestMessage
-          CALL    PrintStr32
-
-;          MOV     ECX, 80*25
-;OUTPUT:
-;          MOV     AL, 0x42
-;          CALL    PutAscii32
-;          DEC     ECX
-;          CMP     ECX, 0
-;          JNE     OUTPUT
-          HLT
-
-TestMessage DB "This is the test", 0x0D, 0x0A, "next line", 0x00
-
 CopyKernelImage:
 ; get kernel image size
           XOR     EAX, EAX
@@ -260,6 +223,13 @@ Failure2:
           JMP     Failure2
 
 EXECUTE:
+
+; dump memory test
+;          MOV     EBX, [KERNEL_RMODE_BASE_SEG]
+;          MOV     ECX, 0x0D
+;          CALL    DumpMemory32
+;          HLT
+
           ;---------------------------
           ;  Execute Kernel
           ;---------------------------
