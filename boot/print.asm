@@ -98,6 +98,7 @@ CURSOR_Y DD 0x0
 
 ASCII_CR_CODE DB 0x0D
 ASCII_LF_CODE DB 0x0A
+ASCII_SP_CODE DB 0x20
 
 SetCursor32:
           PUSH    EAX
@@ -183,6 +184,8 @@ CheckControlCode32:
           JE      CheckControlCode32CRCode
           CMP     AL, BYTE [ASCII_LF_CODE]
           JE      CheckControlCode32LFCode
+          CMP     AL, BYTE [ASCII_SP_CODE]
+          JE      CheckControlCode32SPCode
           JMP     CheckControlCode32ReturnFalse
 
 CheckControlCode32CRCode:
@@ -195,6 +198,26 @@ CheckControlCode32LFCode:
           MOV     EAX, DWORD [CURSOR_Y]
           INC     EAX
           MOV     DWORD [CURSOR_Y], EAX
+          JMP     CheckControlCode32ReturnTrue
+CheckControlCode32SPCode:
+          ;ASCII_SP_CODE
+          MOV     EAX, DWORD [CURSOR_X]
+          INC     EAX
+          MOV     DWORD [CURSOR_X], EAX
+          JMP     CheckControlCode32FixCursor
+CheckControlCode32FixCursor:
+          MOV     EBX, DWORD [CURSOR_Y]
+          MOV     EAX, DWORD [CURSOR_X]
+          CMP     EAX, DWORD [DISPLAY_WIDTH]
+          JNE     CheckControlCode32FixCursorCompleted
+
+          MOV     EAX, 0
+          CMP     EBX, DWORD [DISPLAY_HEIGHT]
+          JNE     CheckControlCode32FixCursorCompleted
+          MOV     EBX, 0
+CheckControlCode32FixCursorCompleted:
+          MOV     DWORD [CURSOR_X], EAX
+          MOV     DWORD [CURSOR_Y], EBX
           JMP     CheckControlCode32ReturnTrue
 CheckControlCode32ReturnFalse:
           MOV     EAX, 0

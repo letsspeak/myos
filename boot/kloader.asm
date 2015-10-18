@@ -70,6 +70,14 @@ KLoader_Main:
           MOV     SI, SuccessMessage
           CALL    PrintLine
 
+;; debug dump memory
+;          MOV     BX, [KERNEL_RMODE_BASE_SEG]
+;          MOV     ES, BX
+;          MOV     BX, [KERNEL_RMODE_BASE_ADDR]
+;          MOV     CX, 0x0D
+;          CALL    DumpMemory
+;          HLT
+
 ; Switch to Protected Mode
           MOV     SI, SwitchingMessage
           CALL    PrintStr
@@ -209,13 +217,45 @@ CopyKernelImage:
           MOVZX   EAX, WORD [ImageSizeES]
           SHL     EAX, 0x4
           MOV     DWORD [KernelImageSize], EAX
-; copy
-          CLD
-          MOV     ESI, [KERNEL_RMODE_BASE_SEG]
-          MOV     EDI, [KERNEL_PMODE_BASE]
-          MOV     ECX, EAX
-REP       MOVSD
+; calc kernel copied address => EBX
+          XOR     EBX, EBX
+          MOVZX   EBX, WORD [KERNEL_RMODE_BASE_SEG]
+          SHL     EBX, 0x4
+          MOVZX   EAX, WORD [KERNEL_RMODE_BASE_ADDR]
+          ADD     EBX, EAX
+; copy parameters
+;          CLD
+;          MOV     ESI, DWORD [EBX]
+;          MOV     EDI, DWORD [KERNEL_PMODE_BASE]
+          MOV     ECX, 0
+          MOV     EDX, DWORD [KERNEL_PMODE_BASE]
+
+;debug
+;          MOV     EAX, DWORD [EBX]
+;          MOV     DWORD [EDX], EAX
+;          MOV     EAX, DWORD [EBX+4]
+;          MOV     DWORD [EDX+4], EAX
+
+          MOV     DWORD [EDX], 0x000741B8
+
+          MOV     EBX, EDX
+          MOV     ECX, 0x8
+          CALL    DumpMemory32
+          HLT
+
+          ; EBX => EDX copy
+DoCopyKernelImage:
+          MOV     EAX, DWORD [EBX]
+          MOV     DWORD [EDX], EAX
+          ADD     EBX, 0x4
+          ADD     EDX, 0x4
+          ADD     ECX, 0x4
+          CMP     ECX, DWORD [KernelImageSize]
+          JNE     DoCopyKernelImage
           JMP     EXECUTE
+
+;REP       MOVSD
+;          JMP     EXECUTE
 
 
 Failure2:
@@ -224,11 +264,16 @@ Failure2:
 
 EXECUTE:
 
-; dump memory test
-;          MOV     EBX, [KERNEL_RMODE_BASE_SEG]
-;          MOV     ECX, 0x0D
-;          CALL    DumpMemory32
-;          HLT
+;; dump memory test
+;          XOR     EBX, EBX
+;          MOVZX   EBX, WORD [KERNEL_RMODE_BASE_SEG]
+;          SHL     EBX, 0x4
+;          MOVZX   EAX, WORD [KERNEL_RMODE_BASE_ADDR]
+;          ADD     EBX, EAX
+          MOV     EBX, DWORD [KERNEL_PMODE_BASE]
+          MOV     ECX, 0x0D
+          CALL    DumpMemory32
+          HLT
 
           ;---------------------------
           ;  Execute Kernel

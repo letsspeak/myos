@@ -38,15 +38,18 @@ DUMP_LOOP_DONE:
 ;
 ;/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 DumpMemory32:
-          MOV     AL, BYTE [EBX]
+          PUSHA
+DumpMemory32Loop:
+          MOVZX   EAX, BYTE [EBX]
           CALL    PutByte32
           CALL    PutSpace32
           INC     EBX
           DEC     ECX
           JCXZ    DumpMemory32LoopDone
-          JMP     DumpMemory32
+          JMP     DumpMemory32Loop
 DumpMemory32LoopDone:
           CALL    PutLineFeedCode32
+          POPA
           RET
 
 %endif
