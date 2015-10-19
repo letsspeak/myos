@@ -9,28 +9,28 @@
 
 EnableA20Line:
 
-; PICが一切の割り込みを受け付けないようにする
-;	AT互換機の仕様では、PICの初期化をするなら、
-;	こいつをCLI前にやっておかないと、たまにハングアップする
-;	PICの初期化はあとでやる
-
-		MOV		AL,0xff
-		OUT		0x21,AL
-		NOP						; OUT命令を連続させるとうまくいかない機種があるらしいので
-		OUT		0xa1,AL
-
-		CLI						; さらにCPUレベルでも割り込み禁止
-
-
-    CALL  waitkbdout
-    MOV   AL,0xd1
-    OUT   0x64,AL
-    CALL  waitkbdout
-    MOV   AL,0xdf     ; enable A20
-    OUT   0x60,AL
-    CALL  waitkbdout
-    MOV   AX, 0
-    RET
+;; PICが一切の割り込みを受け付けないようにする
+;;	AT互換機の仕様では、PICの初期化をするなら、
+;;	こいつをCLI前にやっておかないと、たまにハングアップする
+;;	PICの初期化はあとでやる
+;
+;		MOV		AL,0xff
+;		OUT		0x21,AL
+;		NOP						; OUT命令を連続させるとうまくいかない機種があるらしいので
+;		OUT		0xa1,AL
+;
+;		CLI						; さらにCPUレベルでも割り込み禁止
+;
+;
+;    CALL  waitkbdout
+;    MOV   AL,0xd1
+;    OUT   0x64,AL
+;    CALL  waitkbdout
+;    MOV   AL,0xdf     ; enable A20
+;    OUT   0x60,AL
+;    CALL  waitkbdout
+;    MOV   AX, 0
+;    RET
 
 ; Test if A20 is alread enabled
         CALL    check_a20

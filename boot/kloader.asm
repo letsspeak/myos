@@ -86,7 +86,6 @@ KLoader_Main:
 ; Switch to Protected Mode
           MOV     SI, SwitchingMessage
           CALL    PrintStr
-          HLT
           CLI
           LGDT    [gdtr]
           JMP     Enter_pmode
@@ -148,8 +147,8 @@ Enter_pmode:
 [BITS 32]
 
 Checking32BitCalcMessage    DB "Checking 32-bit Calculation...", 0x00
-Checking16BitMemoryMessage  DB "Checking 16-Bit Memory Access...", 0x00
-Checking32BitMemoryMessage  DB "Checking 32-Bit Memory Access...", 0x00
+Checking16BitMemoryMessage  DB "Checking 16-bit Memory Access...", 0x00
+Checking32BitMemoryMessage  DB "Checking 32-bit Memory Access...", 0x00
 
 Pmode_start:
           MOV     AX, DATA_DESC - NULL_DESC
@@ -160,6 +159,7 @@ Pmode_start:
           MOV     DS, AX
 
           MOV     ESP, 90000h    ; initialize stac pointer
+          CALL    Cls32
 
 ; Check 32-bit calculation enabled
           MOV     SI, Checking32BitCalcMessage
@@ -178,10 +178,10 @@ Pmode_start:
           CALL    PrintStr32
 
           XOR     EAX, EAX
-          MOV     DWORD EBX, 0x00007000
+          MOV     EBX, 0x00007000
           MOV     DWORD [EBX], 0x18E9741B
           MOV     EAX, DWORD [EBX]
-          CMP     EAX, EBX
+          CMP     EAX, 0x18E9741B
           JNE     KLoader_Fail32  ; ZF = 0 (EAX != EBX)
 
           MOV     SI, SuccessMessage
@@ -192,10 +192,10 @@ Pmode_start:
           CALL    PrintStr32
 
           XOR     EAX, EAX
-          MOV     DWORD EBX, 0x00100000
-          MOV     DWORD [EBX], 0x18E9741B
+          MOV     EBX, 0x00100008
+          MOV     DWORD [EBX], 0x18E9741B  ; little endian
           MOV     EAX, DWORD [EBX]
-          CMP     EAX, EBX
+          CMP     EAX, 0x18E9741B
           JNE     KLoader_Fail32  ; ZF = 0 (EAX != EBX)
 
           MOV     SI, SuccessMessage
@@ -213,64 +213,37 @@ CopyKernelImage:
           MOVZX   EAX, WORD [ImageSizeES]
           SHL     EAX, 0x4
           MOV     DWORD [KernelImageSize], EAX
-; calc kernel copied address => EBX
+; calc real mode kernel address => EBX
           XOR     EBX, EBX
           MOVZX   EBX, WORD [KERNEL_RMODE_BASE_SEG]
           SHL     EBX, 0x4
           MOVZX   EAX, WORD [KERNEL_RMODE_BASE_ADDR]
-          ADD     EBX, EAX
+          ADD     EBX, EAX                ; EBX: from address
+
 ; copy parameters
-;          CLD
-;          MOV     ESI, DWORD [EBX]
-;          MOV     EDI, DWORD [KERNEL_PMODE_BASE]
-;          MOV     ECX, 0
-;          MOV     EDX, 0x00000500
+          MOV     ECX, 0  ; ECX: copied bytes count
 
-;debug
-;          MOV     EAX, DWORD [EBX]
-;          MOV     DWORD [EDX], EAX
-;          MOV     EAX, DWORD [EBX+4]
-;          MOV     DWORD [EDX+4], EAX
-
-          MOV     DWORD [EDX], 0x000741B8
-
-;          MOV     EBX, EDX
-;                                  |A19
-;                                  98765432109876543210
-
-
-
-          ; EBX => EDX copy
 DoCopyKernelImage:
-          MOV     EAX, DWORD [EBX]
-          MOV     DWORD [EDX], EAX
-          ADD     EBX, 0x4
-          ADD     EDX, 0x4
-          ADD     ECX, 0x4
+
+          MOV     EBX, KERNEL_RMODE_BASE
+          ADD     EBX, ECX
+          MOV     AL, BYTE [EBX]        ; EAX: temoporary byte
+
+          MOV     EDX, KERNEL_PMODE_BASE
+          ADD     EDX, ECX
+          MOV     BYTE [EDX], AL        ; do copy
+
+          INC     ECX
           CMP     ECX, DWORD [KernelImageSize]
           JNE     DoCopyKernelImage
+
           JMP     EXECUTE
-
-;REP       MOVSD
-;          JMP     EXECUTE
-
 
 Failure2:
           HLT
           JMP     Failure2
 
 EXECUTE:
-
-;; dump memory test
-;          XOR     EBX, EBX
-;          MOVZX   EBX, WORD [KERNEL_RMODE_BASE_SEG]
-;          SHL     EBX, 0x4
-;          MOVZX   EAX, WORD [KERNEL_RMODE_BASE_ADDR]
-;          ADD     EBX, EAX
-          MOV     EBX, KERNEL_PMODE_BASE
-          MOV     ECX, 0x0D
-          CALL    DumpMemory32
-          HLT
 
           ;---------------------------
           ;  Execute Kernel
@@ -281,7 +254,6 @@ EXECUTE:
           XOR     EBX, EBX
           CLI
           CALL    EBP
-;          CALL    CODE_DESC:jEBP
           ADD     ESP, 4
           JMP     Failure2
 

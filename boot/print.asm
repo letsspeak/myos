@@ -256,6 +256,25 @@ DoPutHex32:
           POP     EAX
           RET
 
+PutDoubleWord32:
+          PUSHA
+          XOR     ECX, ECX
+          MOV     CL, 0x20
+          PUSH    EAX
+PutDoubleWord32Loop:
+          SUB     CL, 0x08
+          POP     EAX
+          PUSH    EAX
+          SHR     EAX, CL
+          AND     EAX, 0x000000FF
+          CALL    PutByte32
+          CALL    PutSpace32
+          CMP     CL, 0
+          JNE     PutDoubleWord32Loop
+          POP     EAX
+          POPA
+          RET
+
 
 PrintStr32:
           PUSH    AX
@@ -277,9 +296,12 @@ PutLineFeedCode32:
           MOV     SI, LineFeedCode
           CALL    PrintStr32
           RET
+
 PutSpace32:
-          MOV     SI, SpaceCode
-          CALL    PrintStr32
+          PUSH    EAX
+          MOV     EAX, 0x00000020
+          CALL    PutAscii32
+          POP     EAX
           RET
 
 
