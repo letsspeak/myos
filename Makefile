@@ -3,12 +3,14 @@
 boot.img:
 	nasm -o temp/bootsector.img boot/boot.asm
 	nasm -o temp/KLOADER.IMG boot/kloader.asm
+#	nasm -o temp/KLOADER.IMG boot/another.asm
 	nasm -o temp/KERNEL.IMG kernel/test.asm
 	sh burn.sh
 
 boot:
 	nasm -o temp/bootsector.img boot/boot.asm
 	nasm -o temp/KLOADER.IMG boot/kloader.asm
+#	nasm -o temp/KLOADER.IMG boot/another.asm
 	nasm -o temp/KERNEL.IMG kernel/test.asm
 
 #kernel:
