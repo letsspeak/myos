@@ -208,6 +208,13 @@ KLoader_Fail32:
           HLT
 
 CopyKernelImage:
+
+;; test code
+;          MOV     EBX, 0x000B8000
+;          MOV     EAX, 0x00000741
+;          MOV     [EBX], EAX
+
+
 ; get kernel image size
           XOR     EAX, EAX
           MOVZX   EAX, WORD [ImageSizeES]
