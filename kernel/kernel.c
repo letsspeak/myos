@@ -17,7 +17,7 @@
 int _kernel_entry( void )
 {
   unsigned short *vram_TextMode = (unsigned short *)0x000B8000;
-  *vram_TextMode = 0x00000741;
+  *vram_TextMode = 0x00000742;
   //initBSS(_BSS_START, _BSS_END - _BSS_START);
   //displaySample();
 //  for (;;)
