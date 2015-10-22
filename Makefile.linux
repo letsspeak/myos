@@ -1,0 +1,50 @@
+.PHONY: clean
+
+MAKE_DIR = $(PWD)
+
+BIN_DIR := $(MAKE_DIR)/bin
+BOOT_DIR := $(MAKE_DIR)/boot
+KERNEL_DIR := $(MAKE_DIR)/kernel
+TEMP_DIR := $(MAKE_DIR)/temp
+BOOTDISK_MOUNT_POINT := $(TEMP_DIR)/bootdisk
+
+BOOTSECTOR_IMG = bootsector.img
+KERNEL_LOADER_IMG= kloader.img
+KERNEL_IMG = kernel.img
+BOOT_IMG = boot.img
+
+all: boot.img
+	@echo Makefile for Linux
+
+bootsector.img:
+	nasm -o $(TEMP_DIR)/$(BOOTSECTOR_IMG) boot/boot.asm
+
+kloader.img:
+	nasm -o $(TEMP_DIR)/$(KERNEL_LOADER_IMG) boot/kloader.asm
+
+kernel.img:
+	gcc -fomit-frame-pointer -O2 -masm=intel -Wall kernel/kernel.c -o temp/kernel.o -c
+	ld -T kernel/ld.script -Map temp/kernel.map -nostdlib -e _kernel_entry --oformat binary temp/kernel.o -o $(TEMP_DIR)/$(KERNEL_IMG)
+
+boot.img: bootsector.img kloader.img kernel.img
+	-mkdir $(BOOTDISK_MOUNT_POINT)
+	dd bs=512 count=2880 if=/dev/zero of=$(TEMP_DIR)/$(BOOT_IMG)
+	mkfs.vfat -F12 -s1 -n OSBOOT $(TEMP_DIR)/$(BOOT_IMG)
+	sudo mount $(TEMP_DIR)/$(BOOT_IMG) $(BOOTDISK_MOUNT_POINT) -t msdos -o loop,fat=12,check=strict,uid=1000,gid=1000,debug
+	cp -v $(TEMP_DIR)/$(KERNEL_LOADER_IMG) $(BOOTDISK_MOUNT_POINT)
+	cp -v $(TEMP_DIR)/$(KERNEL_IMG) $(BOOTDISK_MOUNT_POINT)
+	sudo umount $(BOOTDISK_MOUNT_POINT)
+	dd bs=512 count=1 if=$(TEMP_DIR)/$(BOOTSECTOR_IMG) of=$(TEMP_DIR)/$(BOOT_IMG) conv=notrunc
+	mv $(TEMP_DIR)/$(BOOT_IMG) $(BIN_DIR)
+	-rm -rf $(BOOTDISK_MOUNT_POINT)
+
+clean:
+	-$(RM) $(TEMP_DIR)/$(BOOTSECTOR_IMG)
+	-$(RM) $(TEMP_DIR)/$(KERNEL_LOADER_IMG)
+	-$(RM) $(TEMP_DIR)/$(KERNEL_IMG)
+	-$(RM) $(TEMP_DIR)/$(BOOT_IMG)
+	-sudo umount $(BOOTDISK_MOUNT_POINT)
+	-rm -rf $(BOOTDISK_MOUNT_POINT)
+	-$(RM) $(TEMP_DIR)/kernel.map
+	-$(RM) $(TEMP_DIR)/kernel.o
+

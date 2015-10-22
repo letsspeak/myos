@@ -1,0 +1,5 @@
+.PHONY: boot clean
+
+all:
+	@echo Makefile for Windows is under construciion
+

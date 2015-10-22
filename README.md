@@ -1,9 +1,17 @@
 # myos
 
-## require
+## Build
 
+### Linux
 - To burn boot image
-  - Mac OSX: Using `diskutil` to burn file.
+  - nasm `sudo yum install nasm`
+  - dosfstools `sudo yum install dosfstools`
+
+### Mac OSX
+
+#### require
+- To burn boot image
+  - Using `diskutil` to burn file.
   - dosfstools on OSX
     - https://github.com/sv99/dosfstools-osx
     - To make empty FAT12 floppy data via `mkfs.vfat` command.

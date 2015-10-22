@@ -1,17 +1,26 @@
-.PHONY: boot clean
 
-boot.img:
-	nasm -o temp/bootsector.img boot/boot.asm
-	nasm -o temp/KLOADER.IMG boot/kloader.asm
-	sh burn.sh
 
-boot:
-	nasm -o temp/bootsector.img boot/boot.asm
-	nasm -o temp/KLOADER.IMG boot/kloader.asm
+ifeq ($(OS),Windows_NT)
 
-#kernel:
-#scp centos:git/myos/temp/KImage temp/KImage
+# for Windows
+include Makefile.windows
 
-clean:
-	rm -f temp/*
-	rm -f bin/*
+else
+
+UNAME=${shell uname}
+
+ifeq ($(UNAME),Linux)
+
+# for Linux
+include Makefile.linux
+
+endif
+
+ifeq ($(UNAME),Darwin)
+
+# for Linux
+include Makefile.darwin
+
+endif
+
+endif
