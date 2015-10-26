@@ -1,5 +1,6 @@
 // kernel.c
 
+#include "idt.c"
 #include "kstdlib.c"
 #include "kmath.c"
 #include "memory.c"
@@ -32,6 +33,10 @@ int main(void)
 //  ctm_init_driver(ctm);
 //
 //  ctm_buffer *buf = ctm_create_buffer(ctm);
+
+  idt.size = NUM_IDT * sizeof (gate_descriptor);
+  idt.base = (gate_descriptor*)idt_descriptors;
+  load_idt();
 
   ctm_cls();
   ctm_fill(CTM_COLOR_BLUE);
