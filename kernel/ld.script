@@ -1,10 +1,12 @@
+ENTRY(main)
 SECTIONS
 {
     . = 0x100000;
     .text :
     {
         _text_start = .;
-        *(.text)
+        *(.text.main);
+        *(.text*)
         _text_end = .;
     }
 

@@ -23,8 +23,8 @@ kloader.img:
 	nasm -o $(TEMP_DIR)/$(KERNEL_LOADER_IMG) boot/kloader.asm
 
 kernel.img:
-	gcc -fomit-frame-pointer -O2 -masm=intel -Wall kernel/kernel.c -o temp/kernel.o -c
-	ld -T kernel/ld.script -Map temp/kernel.map -nostdlib -e _kernel_entry --oformat binary temp/kernel.o -o $(TEMP_DIR)/$(KERNEL_IMG)
+	gcc -fomit-frame-pointer -O0 -masm=intel -Wall kernel/kernel.c -o temp/kernel.o -c -m32
+	ld -T kernel/ld.script -Map temp/kernel.map -nostdlib -e main --oformat binary temp/kernel.o -o $(TEMP_DIR)/$(KERNEL_IMG) -m elf_i386
 
 boot.img: bootsector.img kloader.img kernel.img
 	-mkdir $(BOOTDISK_MOUNT_POINT)

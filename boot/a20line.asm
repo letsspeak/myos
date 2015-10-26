@@ -64,7 +64,7 @@ EnableA20BIOSFunctionFail:
 
 ;Test if A20 is enabled in a loop with a time-out (as the fast A20 method may work slowly)
 
-EnableA20LineFail
+EnableA20LineFail:
         MOV     AX, -1
         RET
 
