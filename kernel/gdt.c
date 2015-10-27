@@ -76,7 +76,7 @@ segment_descriptor gdt[NUM_GDT];
 typedef struct
 {
   unsigned short size;
-  segment_descriptor *base;
+  unsigned long *base;
 } __attribute__ ((packed)) gdt_struct;
 
 gdt_struct gdtr;
@@ -105,7 +105,7 @@ void setup_segment_descriptor(void)
   gdt[GDT_DATA_DESCRIPTOR].base_hi  = GDT_DATA_BASE_HI;
 }
 
-#define load_gdt() ({ __asm__ __volatile__ ("lgdt gdtr"); })
+//#define load_gdt() ({ __asm__ __volatile__ ("lgdt gdtr"); })
 
 void clear_segment_selector()
 {
@@ -119,12 +119,20 @@ void clear_segment_selector()
   __asm__ __volatile__ ("_flush_seg:");
 }
 
+static inline void load_gdt(const struct gdt_struct *dtr)
+{
+    asm volatile("lgdt %0"::"m" (*dtr));
+}
+
 void setup_gdtr(void)
 {
   gdtr.size = NUM_GDT * sizeof(segment_descriptor);
-  gdtr.base = (segment_descriptor*)gdt;
+  gdtr.base = (unsigned long*)gdt;
   setup_segment_descriptor();
-  __asm__ __volatile__ ("lgdt [gdtr]");
+  load_gdt(&gdtr);
+//  const gdt_struct *pgdt = &gdtr;
+//  asm volatile("lgdt %0"::"m" (&gdtr));
+//  __asm__ __volatile__ ("lgdt [gdtr]");
 //  asm volatile("lgdt (%0)": "m" (&gdtr));
 //  load_gdt();
   clear_segment_selector();
