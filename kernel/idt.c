@@ -48,7 +48,6 @@
 //    47      : P
 //    48 - 63 : Offset 31:16
 
-#define load_idt() ({ __asm__ __volatile__ ("lidt idt"); })
 
 // Definition of Interrupt Gate Descriptor Flags
 //  bit number    description
@@ -95,7 +94,7 @@ typedef struct
   gate_descriptor *base;
 } __attribute__ ((packed)) idt_struct;
 
-idt_struct idt;
+idt_struct idtr;
 
 void setup_gate_descriptor(int id, int base, unsigned short segment_selector, unsigned char flags)
 {
@@ -112,4 +111,15 @@ void setup_interrupt_gate(int id, void *interrupt_handler)
       IDT_INTERRUPT_SELECTOR, 
       IDT_FLAGS_PRESENT | IDT_FLAGS_INTERRUPT_GATE_32BIT);
 }
+
+#define load_idt() ({ __asm__ __volatile__ ("lidt idtr"); })
+
+void setup_idtr(void)
+{
+  idtr.size = NUM_IDT * sizeof (gate_descriptor);
+  idtr.base = (gate_descriptor*)idt_descriptors;
+  load_idt();
+}
+
+
 
