@@ -192,16 +192,42 @@ void ctm_put_int(int n)
   ctm_put_int_base(n, 10, digits);
 }
 
-void ctm_put_int_hex(int n)
+void ctm_put_byte_impl(unsigned char c)
+{
+  ctm_put_int_base((int)c, 16, 1);
+}
+
+void ctm_put_byte(unsigned char c)
 {
   ctm_puts("0x");
-  ctm_put_int_base(n, 16, 4);
+  ctm_put_byte_impl(c);
+}
+
+void ctm_put_word(unsigned short i)
+{
+  ctm_puts("0x");
+  ctm_put_byte_impl((unsigned char) (i >> 8));
+  ctm_put_byte_impl((unsigned char) i & 0x00ff);
+}
+
+void ctm_put_dword(int i)
+{
+  ctm_puts("0x");
+  ctm_put_byte_impl((unsigned char) (i >> 24));
+  ctm_put_byte_impl((unsigned char) (i >> 16));
+  ctm_put_byte_impl((unsigned char) (i >> 8));
+  ctm_put_byte_impl((unsigned char) i & 0xff);
 }
 
 void ctm_put_int_bit(int n)
 {
   ctm_put_int_base(n, 2, 16);
   ctm_puts("b");
+}
+
+void ctm_put_pointer(void *p)
+{
+  ctm_put_dword((int)p);
 }
 
 

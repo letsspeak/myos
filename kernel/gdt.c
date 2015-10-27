@@ -37,14 +37,14 @@
 
 // for NULL Descriptor
 #define GDT_NULL_LIMIT                0x0000
-#define GDT_NULL_BASE_LO              0x0000
+#define GDT_NULL_BASE_LOW             0x0000
 #define GDT_NULL_BASE_MID             0x00
 #define GDT_NULL_FLAGS                0x0000
 #define GDT_NULL_BASE_HI              0x00
 
 // for Code Descriptor
 #define GDT_CODE_LIMIT                0xffff
-#define GDT_CODE_BASE_LO              0x0000
+#define GDT_CODE_BASE_LOW             0x0000
 #define GDT_CODE_BASE_MID             0x00
 #define GDT_CODE_FLAGS_BL             0x9a
 #define GDT_CODE_FLAGS_BH             0xcf
@@ -53,88 +53,84 @@
 
 // for Data Descriptor
 #define GDT_DATA_LIMIT                0xffff
-#define GDT_DATA_BASE_LO              0x0000
+#define GDT_DATA_BASE_LOW             0x0000
 #define GDT_DATA_BASE_MID             0x00
 #define GDT_DATA_FLAGS_BL             0x92
 #define GDT_DATA_FLAGS_BH             0xcf
 #define GDT_DATA_FLAGS                0xcf92
 #define GDT_DATA_BASE_HI              0x00
 
-#define NUM_GDT   3
+#define GDT_ENTRIES   3
 
-typedef struct
-{
-  unsigned short limit_lo;
-  unsigned short base_lo;
+struct desc_struct {
+  unsigned short limit_low;
+  unsigned short base_low;
   unsigned char base_mid;
   unsigned short flags;
   unsigned short base_hi;
-} __attribute__ ((packed)) segment_descriptor;
+} __attribute__ ((packed));
 
-segment_descriptor gdt[NUM_GDT];
+struct desc_struct gdt[GDT_ENTRIES];
 
-typedef struct
-{
+struct desc_ptr {
   unsigned short size;
-  unsigned long *base;
-} __attribute__ ((packed)) gdt_struct;
+  unsigned long address;
+} __attribute__ ((packed));
 
-gdt_struct gdtr;
+struct desc_ptr gdt_descr;
 
 void setup_segment_descriptor(void)
 {
   // set up NULL Descriptor
-  gdt[GDT_NULL_DESCRIPTOR].limit_lo = GDT_NULL_LIMIT;
-  gdt[GDT_NULL_DESCRIPTOR].base_lo  = GDT_NULL_BASE_LO;
-  gdt[GDT_NULL_DESCRIPTOR].base_mid = GDT_NULL_BASE_MID;
-  gdt[GDT_NULL_DESCRIPTOR].flags    = GDT_NULL_FLAGS;
-  gdt[GDT_NULL_DESCRIPTOR].base_hi  = GDT_NULL_BASE_HI;
+  gdt[GDT_NULL_DESCRIPTOR].limit_low  = GDT_NULL_LIMIT;
+  gdt[GDT_NULL_DESCRIPTOR].base_low   = GDT_NULL_BASE_LOW;
+  gdt[GDT_NULL_DESCRIPTOR].base_mid   = GDT_NULL_BASE_MID;
+  gdt[GDT_NULL_DESCRIPTOR].flags      = GDT_NULL_FLAGS;
+  gdt[GDT_NULL_DESCRIPTOR].base_hi    = GDT_NULL_BASE_HI;
 
   // set up Code Descriptor
-  gdt[GDT_CODE_DESCRIPTOR].limit_lo = GDT_CODE_LIMIT;
-  gdt[GDT_CODE_DESCRIPTOR].base_lo  = GDT_CODE_BASE_LO;
-  gdt[GDT_CODE_DESCRIPTOR].base_mid = GDT_CODE_BASE_MID;
-  gdt[GDT_CODE_DESCRIPTOR].flags    = GDT_CODE_FLAGS;
-  gdt[GDT_CODE_DESCRIPTOR].base_hi  = GDT_CODE_BASE_HI;
+  gdt[GDT_CODE_DESCRIPTOR].limit_low  = GDT_CODE_LIMIT;
+  gdt[GDT_CODE_DESCRIPTOR].base_low   = GDT_CODE_BASE_LOW;
+  gdt[GDT_CODE_DESCRIPTOR].base_mid   = GDT_CODE_BASE_MID;
+  gdt[GDT_CODE_DESCRIPTOR].flags      = GDT_CODE_FLAGS;
+  gdt[GDT_CODE_DESCRIPTOR].base_hi    = GDT_CODE_BASE_HI;
 
   // set up Data Descriptor
-  gdt[GDT_DATA_DESCRIPTOR].limit_lo = GDT_DATA_LIMIT;
-  gdt[GDT_DATA_DESCRIPTOR].base_lo  = GDT_DATA_BASE_LO;
-  gdt[GDT_DATA_DESCRIPTOR].base_mid = GDT_DATA_BASE_MID;
-  gdt[GDT_DATA_DESCRIPTOR].flags    = GDT_DATA_FLAGS;
-  gdt[GDT_DATA_DESCRIPTOR].base_hi  = GDT_DATA_BASE_HI;
+  gdt[GDT_DATA_DESCRIPTOR].limit_low  = GDT_DATA_LIMIT;
+  gdt[GDT_DATA_DESCRIPTOR].base_low   = GDT_DATA_BASE_LOW;
+  gdt[GDT_DATA_DESCRIPTOR].base_mid   = GDT_DATA_BASE_MID;
+  gdt[GDT_DATA_DESCRIPTOR].flags      = GDT_DATA_FLAGS;
+  gdt[GDT_DATA_DESCRIPTOR].base_hi    = GDT_DATA_BASE_HI;
 }
 
 //#define load_gdt() ({ __asm__ __volatile__ ("lgdt gdtr"); })
 
 void clear_segment_selector()
 {
-  __asm__ __volatile__ ("mov %ax, 0x10"); 
-  __asm__ __volatile__ ("mov %ds, %ax"); 
-  __asm__ __volatile__ ("mov %es, %ax"); 
-  __asm__ __volatile__ ("mov %fs, %ax"); 
-  __asm__ __volatile__ ("mov %gs, %ax"); 
-  __asm__ __volatile__ ("mov %ss, %ax"); 
-  __asm__ __volatile__ ("jmp 0x08:_flush_seg"); 
-  __asm__ __volatile__ ("_flush_seg:");
+//  __asm__ __volatile__ ("mov %ax, 0x10"); 
+//  __asm__ __volatile__ ("mov %ds, %ax"); 
+//  __asm__ __volatile__ ("mov %es, %ax"); 
+//  __asm__ __volatile__ ("mov %fs, %ax"); 
+//  __asm__ __volatile__ ("mov %gs, %ax"); 
+//  __asm__ __volatile__ ("mov %ss, %ax"); 
+//  __asm__ __volatile__ ("jmp 0x08:_flush_seg");
+//  __asm__ __volatile__ ("_flush_seg:");
 }
 
-static inline void load_gdt(const struct gdt_struct *dtr)
+static inline void load_gdt(const struct desc_ptr *dtr)
 {
     asm volatile("lgdt %0"::"m" (*dtr));
 }
 
-void setup_gdtr(void)
+void setup_gdt(void)
 {
-  gdtr.size = NUM_GDT * sizeof(segment_descriptor);
-  gdtr.base = (unsigned long*)gdt;
+  gdt_descr.address = (unsigned long)gdt;
+  gdt_descr.size = GDT_ENTRIES * sizeof(struct desc_struct) - 1;
   setup_segment_descriptor();
-  load_gdt(&gdtr);
-//  const gdt_struct *pgdt = &gdtr;
-//  asm volatile("lgdt %0"::"m" (&gdtr));
-//  __asm__ __volatile__ ("lgdt [gdtr]");
-//  asm volatile("lgdt (%0)": "m" (&gdtr));
-//  load_gdt();
+
+  ctm_puts("&gdt_descr : ");
+  ctm_put_pointer((void*)&gdt_descr);
+  load_gdt(&gdt_descr);
   clear_segment_selector();
 }
 
