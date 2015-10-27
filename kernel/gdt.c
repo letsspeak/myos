@@ -125,7 +125,7 @@ static inline void load_gdt(const struct desc_ptr *dtr)
 void setup_gdt(void)
 {
   gdt_descr.address = (unsigned long)gdt;
-  gdt_descr.size = GDT_ENTRIES * sizeof(struct desc_struct) - 1;
+  gdt_descr.size = GDT_ENTRIES * sizeof(struct desc_struct);
   setup_segment_descriptor();
 
   ctm_puts("&gdt_descr : ");

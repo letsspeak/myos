@@ -75,30 +75,28 @@
 
 #define IDT_INTERRUPT_SELECTOR                0x08
 
-#define NUM_IDT 256
+#define IDT_ENTRIES 256
 
-typedef struct
-{
-  unsigned short base_lo;
+struct gate_descriptor {
+  unsigned short base_low;
   unsigned short segment_selector;
   unsigned char reserved;
   unsigned char flags;
   unsigned short base_hi;
-} __attribute__ ((packed)) gate_descriptor;
+} __attribute__ ((packed)) ;
 
-gate_descriptor idt_descriptors[NUM_IDT];
+struct gate_descriptor idt_descriptors[IDT_ENTRIES];
 
-typedef struct
-{
+struct idt_struct {
   unsigned short size;
-  gate_descriptor *base;
+  unsigned long address;
 } __attribute__ ((packed)) idt_struct;
 
-idt_struct idtr;
+struct idt_struct idtr;
 
 void setup_gate_descriptor(int id, int base, unsigned short segment_selector, unsigned char flags)
 {
-  idt_descriptors[id].base_lo = (unsigned short)(base & 0x0000ffff);
+  idt_descriptors[id].base_low = (unsigned short)(base & 0x0000ffff);
   idt_descriptors[id].segment_selector = segment_selector;
   idt_descriptors[id].reserved = 0x00;
   idt_descriptors[id].flags = flags;
@@ -112,13 +110,20 @@ void setup_interrupt_gate(int id, void *interrupt_handler)
       IDT_FLAGS_PRESENT | IDT_FLAGS_INTERRUPT_GATE_32BIT);
 }
 
-#define load_idt() ({ __asm__ __volatile__ ("lidt idtr"); })
+//#define load_idt() ({ __asm__ __volatile__ ("lidt idtr"); })
+
+static inline void load_idt(const struct idt_struct *idtr)
+{
+  asm volatile("lidt %0"::"m" (*idtr));
+}
 
 void setup_idtr(void)
 {
-  idtr.size = NUM_IDT * sizeof (gate_descriptor);
-  idtr.base = (gate_descriptor*)idt_descriptors;
-  load_idt();
+  idtr.address = (unsigned long)idt_descriptors;
+  idtr.size = IDT_ENTRIES * sizeof (struct gate_descriptor);
+  ctm_puts("&idtr : ");
+  ctm_put_pointer((void*)&idtr);
+  load_idt(&idtr);
 }
 
 
